@@ -15,21 +15,6 @@
   </head>
   <body>
     <main class="page">
-      <section class="toolbar" aria-label="GeoTIFF controls">
-        <label class="toolbar__label" for="geotiff-file">GeoTIFFを読み込む</label>
-        <input
-          id="geotiff-file"
-          class="toolbar__input"
-          type="file"
-          accept=".tif,.tiff,image/tiff"
-        />
-        <button id="clear-geotiff" class="toolbar__button" type="button">
-          読み込み解除
-        </button>
-        <p id="geotiff-status" class="toolbar__status">
-          GeoTIFFを選ぶと、このブラウザ内だけで地図に重ねて表示します。
-        </p>
-      </section>
       <section class="map-card">
         <div id="map" aria-label="地図"></div>
       </section>
@@ -40,8 +25,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="https://unpkg.com/georaster/dist/georaster.browser.bundle.min.js"></script>
-    <script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
     <script src="./main.js"></script>
   </body>
 </html>
