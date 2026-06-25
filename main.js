@@ -35,10 +35,39 @@ const naganoCsMap = L.tileLayer(
 
 gsiStandard.addTo(map);
 
+const FARM_PMTILES_URL = "https://geoforest001.github.io/ina_farm_test/data/%E8%BE%B2%E5%9C%B0%E3%82%BF%E3%82%A4%E3%83%AB.pmtiles";
+
+const farmTiles = protomapsL.leafletLayer({
+  url: FARM_PMTILES_URL,
+  maxDataZoom: 13,
+  paintRules: [
+    {
+      dataLayer: "農地筆ポリゴン2025",
+      symbolizer: new protomapsL.PolygonSymbolizer({
+        fill: "rgb(0,180,0)",
+        opacity: 0.5
+      })
+    },
+    {
+      dataLayer: "02パイプライン_Layer",
+      symbolizer: new protomapsL.LineSymbolizer({
+        color: "rgb(0,80,200)",
+        width: 2
+      })
+    }
+  ],
+  labelRules: []
+});
+farmTiles.addTo(map);
+
 const baseLayers = {
   "地理院標準地図": gsiStandard,
   "地理院航空写真": gsiAirPhoto,
   "長野県CS立体図": naganoCsMap
+};
+
+const overlays = {
+  "伊那市農地タイル": farmTiles
 };
 
 let layerControl;
@@ -48,7 +77,7 @@ function renderLayerControl() {
     map.removeControl(layerControl);
   }
 
-  layerControl = L.control.layers(baseLayers, {}, {
+  layerControl = L.control.layers(baseLayers, overlays, {
     position: "topright",
     collapsed: false
   });
