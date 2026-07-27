@@ -303,6 +303,10 @@ const SURVEY_URL = "https://geoforest001.github.io/map2/data/manhole.pmtiles";
 map.createPane('pointPane');
 map.getPane('pointPane').style.zIndex = 450;
 
+// GPX・ログトラックはポイントより上（pointPaneのcanvasで隠れない）
+map.createPane('gpxPane');
+map.getPane('gpxPane').style.zIndex = 460;
+
 class SquareSymbolizer {
   constructor({ fill, stroke = "black", width = 1, size = 4 }) {
     this.fill = fill;
@@ -795,8 +799,9 @@ bbsFloatBtn.addEventListener('click', () => {
 
 (async () => {
   await _bbsFetchPosts();
+  _bbsRenderMarkers();
   setInterval(async () => {
-    if (bbsPanel.style.display !== 'flex') await _bbsFetchPosts();
+    if (bbsPanel.style.display !== 'flex') { await _bbsFetchPosts(); _bbsRenderMarkers(); }
   }, 60000);
 })();
 
@@ -932,7 +937,7 @@ function _updateTrackLine() {
   if (_trackPoints.length < 2) return;
   const latlngs = _trackPoints.map(p => [p.lat, p.lng]);
   if (_trackLine) { _trackLine.setLatLngs(latlngs); }
-  else { _trackLine = L.polyline(latlngs, { color: '#e53935', weight: 4, opacity: 0.85 }).addTo(map); }
+  else { _trackLine = L.polyline(latlngs, { color: '#e53935', weight: 4, opacity: 0.85, pane: 'gpxPane' }).addTo(map); }
 }
 
 function _exportGPX() {
@@ -957,7 +962,7 @@ function _importGPX(file) {
       if (!pts.length) { toast('トラックポイントが見つかりません', 2500); return; }
       const latlngs = pts.map(p => [parseFloat(p.getAttribute('lat')), parseFloat(p.getAttribute('lon'))]);
       if (_importedTrackLine) map.removeLayer(_importedTrackLine);
-      _importedTrackLine = L.polyline(latlngs, { color: '#1976d2', weight: 3, opacity: 0.85 }).addTo(map);
+      _importedTrackLine = L.polyline(latlngs, { color: '#1976d2', weight: 4, opacity: 0.9, pane: 'gpxPane' }).addTo(map);
       map.fitBounds(_importedTrackLine.getBounds(), { padding: [40, 40] });
       toast(`GPX読み込み完了（${pts.length}点）`, 2000);
       _buildTrackCtrl();
@@ -1018,7 +1023,7 @@ function _buildTrackCtrl() {
   }
 }
 
-const trackControl = L.control({ position: 'topright' });
+const trackControl = L.control({ position: 'bottomright' });
 trackControl.onAdd = function() {
   const div = L.DomUtil.create('div', 'track-ctrl');
   div.id = 'trackCtrl';
