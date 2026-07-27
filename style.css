@@ -172,6 +172,42 @@ body {
   white-space: nowrap;
 }
 
+/* ─── GPSログコントロール ─────────────────────── */
+.track-ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.track-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: #fff;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  text-align: left;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  font-family: sans-serif;
+}
+.track-btn:hover { background: #f4f4f4; }
+.track-btn:active { background: #e8e8e8; }
+.track-info {
+  background: rgba(229,57,53,0.08);
+  border: 2px solid #e53935;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #e53935;
+  white-space: nowrap;
+  font-family: sans-serif;
+}
+
 /* ---- 現場掲示板 ---- */
 #bbsFloatBtn {
   position: fixed; top: 80px; left: 10px; z-index: 9000;
