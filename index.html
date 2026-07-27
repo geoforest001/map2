@@ -74,13 +74,6 @@
             <textarea id="bbsComment" rows="3" placeholder="状況を入力..."></textarea>
           </div>
           <div class="bbs-field">
-            <label>位置情報</label>
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px">
-              <button class="bbs-action-btn" id="bbsGetLocBtn">📍 現在地を取得</button>
-              <span id="bbsLocStatus">未設定</span>
-            </div>
-          </div>
-          <div class="bbs-field">
             <label>写真（任意）</label>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="bbs-action-btn" id="bbsTakePhotoBtn">📷 撮影する</button>
@@ -88,6 +81,13 @@
             </div>
             <input id="bbsPhotoInput" type="file" accept="image/*" style="display:none">
             <img id="bbsPhotoPreview" style="display:none;max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;cursor:pointer">
+          </div>
+          <div class="bbs-field">
+            <label>位置情報</label>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px">
+              <button class="bbs-action-btn" id="bbsGetLocBtn">📍 現在地を取得</button>
+              <span id="bbsLocStatus">未設定</span>
+            </div>
           </div>
           <button id="bbsSubmitBtn">📤 投稿する</button>
           <div id="bbsFormStatus"></div>
@@ -113,6 +113,6 @@
     </div>
 
     <script src="https://unpkg.com/exifr/dist/mini.legacy.umd.js"></script>
-    <script src="./main.js?v=13"></script>
+    <script src="./main.js?v=14"></script>
   </body>
 </html>
