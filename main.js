@@ -535,7 +535,7 @@ function showConfirm(msg) {
    現場掲示板 (BBS)
 ========================= */
 const _GH_PAT = ['github_pat_11CEFRMRY0','mquikxruRiN4_ukRsAYZ7rWdrFuv3aYpWk00WJROhS','GF747tXbXCPF5zFI2HJIYA1VDRjLVB'].join('');
-const _GH_FILE_URL = 'https://api.github.com/repos/geoforest001/map2/contents/data/posts.json';
+const _GH_FILE_URL = 'https://api.github.com/repos/geoforest001/map2/contents/bbs/posts.json';
 
 let _bbsPosts = [], _bbsSha = null, _bbsMarkers = [], _bbsTimer = null;
 let _bbsPhotoB64 = null, _bbsLat = null, _bbsLng = null;
@@ -555,7 +555,7 @@ async function _bbsFetchPosts() {
   _bbsCheckNew();
 }
 
-async function _bbsSavePosts(posts) {
+async function _bbsSavePosts(posts, _depth = 0) {
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(posts, null, 2))));
   const body = { message: 'BBS: update posts', content: encoded, committer: { name: 'Field Map', email: 'map@field' } };
   if (_bbsSha) body.sha = _bbsSha;
@@ -564,6 +564,20 @@ async function _bbsSavePosts(posts) {
     headers: { 'Authorization': 'Bearer ' + _GH_PAT, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
     body: JSON.stringify(body)
   });
+  if (res.status === 409 && _depth < 2) {
+    // 競合: 最新を取得してリモートにない投稿をマージして再試行
+    const r = await fetch(_GH_FILE_URL, { headers: { 'Authorization': 'Bearer ' + _GH_PAT, 'Accept': 'application/vnd.github+json' } });
+    if (!r.ok) throw new Error('競合解決のための再取得に失敗しました');
+    const d = await r.json();
+    _bbsSha = d.sha;
+    const remotePosts = JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g, ''))))) || [];
+    const remoteIds = new Set(remotePosts.map(p => p.id));
+    const newOnly = posts.filter(p => !remoteIds.has(p.id));
+    const merged = newOnly.length > 0 ? [...remotePosts, ...newOnly] : remotePosts;
+    _bbsPosts = merged;
+    if (newOnly.length === 0) return; // 追加投稿なし（削除競合）→ リモート状態を受け入れ
+    return _bbsSavePosts(merged, _depth + 1);
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'GitHub PUT ' + res.status);
