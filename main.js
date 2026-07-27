@@ -877,66 +877,33 @@ document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
   btn.disabled = false;
 });
 
-/* ─── 現在地ボタン（常時追跡） ─────────────────── */
+/* ─── 現在地 常時追跡（自動開始） ───────────────── */
 let currentLocationMarker = null;
 let currentLocationCircle = null;
-let _locWatchId = null;
 
-const locControl = L.control({ position: 'bottomleft' });
-locControl.onAdd = function() {
-  const btn = L.DomUtil.create('button', 'loc-btn');
-  btn.innerHTML = '⊕';
-  btn.title = '現在地を表示';
-  L.DomEvent.on(btn, 'click', L.DomEvent.stopPropagation);
-  L.DomEvent.on(btn, 'click', function() {
-    if (!navigator.geolocation) return;
-
-    if (_locWatchId !== null) {
-      // 追跡停止
-      navigator.geolocation.clearWatch(_locWatchId);
-      _locWatchId = null;
-      if (currentLocationMarker) { map.removeLayer(currentLocationMarker); currentLocationMarker = null; }
-      if (currentLocationCircle) { map.removeLayer(currentLocationCircle); currentLocationCircle = null; }
-      btn.classList.remove('active', 'loading');
-      btn.title = '現在地を表示';
-      return;
-    }
-
-    // 追跡開始
-    btn.classList.add('loading');
-    let firstFix = true;
-    _locWatchId = navigator.geolocation.watchPosition(
-      pos => {
-        const latlng = [pos.coords.latitude, pos.coords.longitude];
-        if (firstFix) {
-          map.setView(latlng, currentLocationZoom);
-          firstFix = false;
-        }
-        if (currentLocationMarker) map.removeLayer(currentLocationMarker);
-        if (currentLocationCircle) map.removeLayer(currentLocationCircle);
-        currentLocationMarker = L.circleMarker(latlng, {
-          radius: 8, color: '#fff', weight: 3,
-          fillColor: '#2979ff', fillOpacity: 1
+if (navigator.geolocation) {
+  let firstFix = true;
+  navigator.geolocation.watchPosition(
+    pos => {
+      const latlng = [pos.coords.latitude, pos.coords.longitude];
+      if (firstFix) {
+        map.setView(latlng, currentLocationZoom);
+        firstFix = false;
+      }
+      if (currentLocationMarker) map.removeLayer(currentLocationMarker);
+      if (currentLocationCircle) map.removeLayer(currentLocationCircle);
+      currentLocationMarker = L.circleMarker(latlng, {
+        radius: 8, color: '#fff', weight: 3,
+        fillColor: '#2979ff', fillOpacity: 1
+      }).addTo(map);
+      if (pos.coords.accuracy) {
+        currentLocationCircle = L.circle(latlng, {
+          radius: pos.coords.accuracy,
+          color: '#2979ff', weight: 1, fillColor: '#2979ff', fillOpacity: 0.1
         }).addTo(map);
-        if (pos.coords.accuracy) {
-          currentLocationCircle = L.circle(latlng, {
-            radius: pos.coords.accuracy,
-            color: '#2979ff', weight: 1, fillColor: '#2979ff', fillOpacity: 0.1
-          }).addTo(map);
-        }
-        btn.classList.remove('loading');
-        btn.classList.add('active');
-        btn.title = '現在地表示を停止';
-      },
-      () => {
-        toast('現在地を取得できませんでした', 3000);
-        btn.classList.remove('loading', 'active');
-        navigator.geolocation.clearWatch(_locWatchId);
-        _locWatchId = null;
-      },
-      { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 }
-    );
-  });
-  return btn;
-};
-locControl.addTo(map);
+      }
+    },
+    () => { toast('現在地を取得できませんでした', 3000); },
+    { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 }
+  );
+}
