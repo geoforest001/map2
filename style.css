@@ -140,8 +140,10 @@ body {
 .lc-open-btn:hover { background: #f4f4f4; }
 @media (max-width: 767px) {
   .leaflet-control-layers {
-    max-height: 60vh;
+    max-height: 55vh;
+    max-width: min(240px, calc(100vw - 56px));
     overflow-y: auto;
+    overflow-x: hidden;
     font-size: 11px !important;
   }
   .leaflet-control-layers-expanded {
@@ -159,6 +161,17 @@ body {
   }
   .leaflet-control-layers-separator {
     margin: 3px 0 !important;
+  }
+  .lgnd-text {
+    white-space: normal;
+    word-break: break-all;
+  }
+  .layer-legend {
+    padding-left: 12px;
+  }
+  .track-btn {
+    font-size: 12px;
+    padding: 5px 10px;
   }
 }
 
