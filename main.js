@@ -876,3 +876,45 @@ document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
   }
   btn.disabled = false;
 });
+
+/* ─── 現在地ボタン ─────────────────────────────── */
+let currentLocationMarker = null;
+let currentLocationCircle = null;
+
+const locControl = L.control({ position: 'bottomleft' });
+locControl.onAdd = function() {
+  const btn = L.DomUtil.create('button', 'loc-btn');
+  btn.innerHTML = '⊕';
+  btn.title = '現在地';
+  L.DomEvent.on(btn, 'click', L.DomEvent.stopPropagation);
+  L.DomEvent.on(btn, 'click', function() {
+    if (!navigator.geolocation) { return; }
+    btn.classList.add('loading');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const latlng = [pos.coords.latitude, pos.coords.longitude];
+        map.setView(latlng, currentLocationZoom);
+        if (currentLocationMarker) { map.removeLayer(currentLocationMarker); currentLocationMarker = null; }
+        if (currentLocationCircle) { map.removeLayer(currentLocationCircle); currentLocationCircle = null; }
+        currentLocationMarker = L.circleMarker(latlng, {
+          radius: 8, color: '#fff', weight: 3,
+          fillColor: '#2979ff', fillOpacity: 1
+        }).addTo(map).bindPopup('現在地').openPopup();
+        if (pos.coords.accuracy) {
+          currentLocationCircle = L.circle(latlng, {
+            radius: pos.coords.accuracy,
+            color: '#2979ff', weight: 1, fillColor: '#2979ff', fillOpacity: 0.1
+          }).addTo(map);
+        }
+        btn.classList.remove('loading');
+      },
+      () => {
+        toast('現在地を取得できませんでした', 3000);
+        btn.classList.remove('loading');
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  });
+  return btn;
+};
+locControl.addTo(map);
