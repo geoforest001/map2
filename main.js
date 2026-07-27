@@ -982,7 +982,7 @@ function _importGPX(file) {
       if (!pts.length) { toast('トラックポイントが見つかりません', 2500); return; }
       const latlngs = pts.map(p => [parseFloat(p.getAttribute('lat')), parseFloat(p.getAttribute('lon'))]);
       if (_importedTrackLine) map.removeLayer(_importedTrackLine);
-      _importedTrackLine = L.polyline(latlngs, { color: '#1976d2', weight: 4, opacity: 0.9, pane: 'gpxPane' }).addTo(map);
+      _importedTrackLine = L.polyline(latlngs, { color: '#e53935', weight: 4, opacity: 0.9, pane: 'gpxPane' }).addTo(map);
       map.fitBounds(_importedTrackLine.getBounds(), { padding: [40, 40] });
       toast(`GPX読み込み完了（${pts.length}点）`, 2000);
       _buildTrackCtrl();
