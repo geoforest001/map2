@@ -710,12 +710,15 @@ function _bbsCompressPhoto(file) {
   return new Promise(resolve => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const MAX = 900; let w = img.width, h = img.height;
+      const MAX = 640; let w = img.width, h = img.height;
       if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX; } else { w = Math.round(w * MAX / h); h = MAX; } }
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg', 0.72));
+      // 50KB以下になるまで品質を下げる（data:image/jpeg;base64, + base64 → 50*1024*4/3+23≈68290文字）
+      let q = 0.82, dataUrl;
+      do { dataUrl = c.toDataURL('image/jpeg', q); q -= 0.1; } while (dataUrl.length > 68000 && q > 0.2);
+      resolve(dataUrl);
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
     img.src = url;
