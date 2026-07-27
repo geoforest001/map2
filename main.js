@@ -840,18 +840,36 @@ document.getElementById('bbsGetLocBtn').addEventListener('click', () => {
   );
 });
 
+document.getElementById('bbsTakePhotoBtn').addEventListener('click', () => document.getElementById('bbsPhotoCapture').click());
 document.getElementById('bbsPickPhotoBtn').addEventListener('click', () => document.getElementById('bbsPhotoInput').click());
-document.getElementById('bbsPhotoInput').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
+
+async function _bbsHandlePhoto(file) {
+  if (!file) return;
+  // EXIF GPS を圧縮前に読む
+  if (window.exifr) {
+    try {
+      const gps = await exifr.gps(file);
+      if (gps && gps.latitude && gps.longitude) {
+        _bbsLat = gps.latitude;
+        _bbsLng = gps.longitude;
+        document.getElementById('bbsLocStatus').textContent =
+          `📷 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
+      }
+    } catch(_) {}
+  }
+  document.getElementById('bbsTakePhotoBtn').textContent = '圧縮中...';
   document.getElementById('bbsPickPhotoBtn').textContent = '圧縮中...';
-  _bbsPhotoB64 = await _bbsCompressPhoto(f);
+  _bbsPhotoB64 = await _bbsCompressPhoto(file);
   if (_bbsPhotoB64) {
     const prev = document.getElementById('bbsPhotoPreview');
     prev.src = _bbsPhotoB64; prev.style.display = 'block';
   }
-  document.getElementById('bbsPickPhotoBtn').textContent = '📷 写真を変更';
-  e.target.value = '';
-});
+  document.getElementById('bbsTakePhotoBtn').textContent = '📷 撮影する';
+  document.getElementById('bbsPickPhotoBtn').textContent = '🖼 ギャラリー';
+}
+
+document.getElementById('bbsPhotoCapture').addEventListener('change', e => { _bbsHandlePhoto(e.target.files[0]); e.target.value = ''; });
+document.getElementById('bbsPhotoInput').addEventListener('change', e => { _bbsHandlePhoto(e.target.files[0]); e.target.value = ''; });
 document.getElementById('bbsPhotoPreview').addEventListener('click', () => { if (_bbsPhotoB64) openPhoto(_bbsPhotoB64); });
 
 document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
@@ -876,7 +894,8 @@ document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
     _bbsPhotoB64 = null; _bbsLat = null; _bbsLng = null;
     document.getElementById('bbsPhotoPreview').style.display = 'none';
     document.getElementById('bbsLocStatus').textContent = '未設定';
-    document.getElementById('bbsPickPhotoBtn').textContent = '📷 写真を選択';
+    document.getElementById('bbsTakePhotoBtn').textContent = '📷 撮影する';
+    document.getElementById('bbsPickPhotoBtn').textContent = '🖼 ギャラリー';
     document.querySelectorAll('.bbs-tab').forEach(b => b.classList.remove('active'));
     document.getElementById('bbsTabList').classList.add('active');
     document.getElementById('bbsListPane').style.display = '';
