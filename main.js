@@ -840,12 +840,8 @@ document.getElementById('bbsGetLocBtn').addEventListener('click', () => {
   );
 });
 
-document.getElementById('bbsTakePhotoBtn').addEventListener('click', () => document.getElementById('bbsPhotoCapture').click());
-document.getElementById('bbsPickPhotoBtn').addEventListener('click', () => document.getElementById('bbsPhotoInput').click());
-
 async function _bbsHandlePhoto(file) {
   if (!file) return;
-  // EXIF GPS を圧縮前に読む
   if (window.exifr) {
     try {
       const gps = await exifr.gps(file);
@@ -868,7 +864,23 @@ async function _bbsHandlePhoto(file) {
   document.getElementById('bbsPickPhotoBtn').textContent = '🖼 ギャラリー';
 }
 
-document.getElementById('bbsPhotoCapture').addEventListener('change', e => { _bbsHandlePhoto(e.target.files[0]); e.target.value = ''; });
+function _bbsOpenFileInput(useCamera) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  if (useCamera) inp.setAttribute('capture', 'environment');
+  inp.style.cssText = 'position:fixed;top:0;left:0;opacity:0;width:0;height:0;pointer-events:none;';
+  document.body.appendChild(inp);
+  inp.onchange = e => {
+    const f = e.target.files[0];
+    if (f) _bbsHandlePhoto(f);
+    document.body.removeChild(inp);
+  };
+  inp.click();
+}
+
+document.getElementById('bbsTakePhotoBtn').addEventListener('click', () => _bbsOpenFileInput(true));
+document.getElementById('bbsPickPhotoBtn').addEventListener('click', () => _bbsOpenFileInput(false));
 document.getElementById('bbsPhotoInput').addEventListener('change', e => { _bbsHandlePhoto(e.target.files[0]); e.target.value = ''; });
 document.getElementById('bbsPhotoPreview').addEventListener('click', () => { if (_bbsPhotoB64) openPhoto(_bbsPhotoB64); });
 
