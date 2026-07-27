@@ -191,32 +191,36 @@ function _bbsCompressPhoto(file) {
 
 /* 投稿者名管理 */
 function _bbsGetUserName() { return localStorage.getItem('bbsUserName') || ''; }
-function _bbsSetUserName(name) {
-  localStorage.setItem('bbsUserName', name);
-  document.getElementById('bbsAuthorName').textContent = name;
+function _bbsUpdateAuthorBar() {
+  const name = _bbsGetUserName();
+  document.getElementById('bbsAuthorBarName').textContent = name || '未登録';
 }
 
-function _bbsOpenNameModal(required = false) {
-  const modal = document.getElementById('bbsNameModal');
-  const input = document.getElementById('bbsNameInput');
-  input.value = _bbsGetUserName();
-  modal.style.display = 'flex';
-  input.focus();
-  document.getElementById('bbsNameSave').onclick = () => {
+(() => {
+  const editBtn = document.getElementById('bbsAuthorEditBtn');
+  const editor  = document.getElementById('bbsAuthorEditor');
+  const input   = document.getElementById('bbsAuthorInput');
+  const saveBtn = document.getElementById('bbsAuthorSaveBtn');
+
+  editBtn.addEventListener('click', () => {
+    input.value = _bbsGetUserName();
+    editor.style.display = 'flex';
+    editBtn.style.display = 'none';
+    input.focus();
+  });
+
+  function saveAuthor() {
     const name = input.value.trim();
     if (!name) { toast('名前を入力してください', 1500); return; }
-    _bbsSetUserName(name);
-    modal.style.display = 'none';
-  };
-  document.getElementById('bbsNameCancel').onclick = () => {
-    if (required) return;
-    modal.style.display = 'none';
-  };
-}
-document.getElementById('bbsNameInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('bbsNameSave').click();
-});
-document.getElementById('bbsChangeNameBtn').addEventListener('click', () => _bbsOpenNameModal(false));
+    localStorage.setItem('bbsUserName', name);
+    _bbsUpdateAuthorBar();
+    editor.style.display = 'none';
+    editBtn.style.display = '';
+    toast('投稿者名を登録しました', 1500);
+  }
+  saveBtn.addEventListener('click', saveAuthor);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') saveAuthor(); });
+})();
 
 const bbsPanel = document.getElementById('bbsPanel');
 const bbsFloatBtn = document.getElementById('bbsFloatBtn');
@@ -234,8 +238,7 @@ function _bbsMarkSeen() {
 }
 
 async function openBbsPanel() {
-  if (!_bbsGetUserName()) { _bbsOpenNameModal(true); return; }
-  document.getElementById('bbsAuthorName').textContent = _bbsGetUserName();
+  _bbsUpdateAuthorBar();
   bbsPanel.style.display = 'flex';
   bbsPanel.classList.remove('collapsed');
   bbsFloatBtn.classList.add('active');
