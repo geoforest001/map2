@@ -172,6 +172,27 @@ body {
   white-space: nowrap;
 }
 
+/* ─── 現在地ボタン ─────────────────────────────── */
+.loc-btn {
+  width: 34px; height: 34px;
+  background: #fff;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-radius: 4px;
+  font-size: 20px; font-weight: bold;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  padding: 0; line-height: 1;
+  color: #333;
+  -webkit-tap-highlight-color: transparent;
+}
+.loc-btn:hover { background: #f4f4f4; }
+.loc-btn.loading { color: #2979ff; animation: loc-spin 1s linear infinite; }
+@keyframes loc-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ---- 現場掲示板 ---- */
 #bbsFloatBtn {
   position: fixed; top: 80px; left: 10px; z-index: 9000;
