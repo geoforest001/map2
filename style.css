@@ -122,26 +122,26 @@ body {
 #bbsFormStatus { font-size: 11px; color: #888; text-align: center; margin-top: 6px; min-height: 16px; }
 #bbsLoadingMsg, #bbsEmptyMsg { text-align: center; color: #999; font-size: 12px; padding: 24px 0; }
 
-/* ---- 投稿者名登録モーダル ---- */
-#bbsNameModal {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-  z-index: 20000; align-items: center; justify-content: center;
+/* ---- 投稿者バー ---- */
+#bbsAuthorBar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 7px 12px; background: #f9f9f9;
+  border-bottom: 1px solid #eee; font-family: sans-serif; flex-shrink: 0;
 }
-#bbsNameBox {
-  background: #fff; border-radius: 14px; padding: 18px 18px 14px;
-  max-width: 260px; width: 88%; font-family: sans-serif;
+#bbsAuthorBarLabel { font-size: 11px; color: #888; }
+#bbsAuthorBarName { font-size: 12px; font-weight: bold; color: #333; flex: 1; }
+#bbsAuthorEditBtn {
+  font-size: 12px; padding: 2px 7px; border: 1px solid #ddd;
+  border-radius: 6px; background: #f0f0f0; cursor: pointer;
 }
-#bbsNameInput {
-  width: 100%; box-sizing: border-box; border: 1px solid #ddd;
-  border-radius: 7px; padding: 8px 10px; font-size: 13px;
+#bbsAuthorEditor { display: flex; gap: 5px; align-items: center; width: 100%; margin-top: 4px; }
+#bbsAuthorInput {
+  flex: 1; border: 1px solid #ddd; border-radius: 7px;
+  padding: 5px 8px; font-size: 12px;
 }
-.bbs-name-save-btn {
-  flex: 1; padding: 9px; background: #06f; color: #fff;
-  border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer;
-}
-.bbs-name-cancel-btn {
-  flex: 1; padding: 9px; background: #f0f0f0; color: #333;
-  border: none; border-radius: 8px; font-size: 13px; cursor: pointer;
+#bbsAuthorSaveBtn {
+  padding: 5px 12px; background: #06f; color: #fff;
+  border: none; border-radius: 7px; font-size: 12px; font-weight: bold; cursor: pointer;
 }
 .bbs-author { font-size: 10px; color: #666; margin-top: 3px; }
 
