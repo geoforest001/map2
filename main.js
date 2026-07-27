@@ -92,7 +92,7 @@ function _bbsRenderMarkers() {
       html: `<div style="background:${col};color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);margin:-16px 0 0 -16px">${_bbsCatEmoji(p.cat)}</div>`,
       iconSize: [32, 32], className: ''
     });
-    let pop = `<div style="font-size:12px;max-width:230px"><b>${escapeHtml(p.cat)}</b> <span style="color:#aaa">${_bbsFmtTime(p.ts)}</span><br><div style="margin-top:4px">${escapeHtml(p.comment || '')}</div>`;
+    let pop = `<div style="font-size:12px;max-width:230px"><b>${escapeHtml(p.cat)}</b> <span style="color:#aaa">${_bbsFmtTime(p.ts)}</span>${p.author ? ` <span style="color:#888">👤${escapeHtml(p.author)}</span>` : ''}<br><div style="margin-top:4px">${escapeHtml(p.comment || '')}</div>`;
     if (p.photo) {
       _bbsPhotoMap[p.id] = p.photo;
       pop += `<img src="${p.photo}" style="max-width:210px;max-height:130px;border-radius:6px;margin-top:6px;cursor:pointer;display:block" onclick="_bbsOpenPhoto('${p.id}')">`;
@@ -136,6 +136,11 @@ function _bbsRenderList() {
     db.addEventListener('click', () => _bbsDeleteById(p.id));
     hdr.appendChild(db);
     card.appendChild(hdr);
+    if (p.author) {
+      const au = document.createElement('div');
+      au.className = 'bbs-author'; au.textContent = '👤 ' + p.author;
+      card.appendChild(au);
+    }
     const cm = document.createElement('div');
     cm.className = 'bbs-comment'; cm.textContent = p.comment || '';
     card.appendChild(cm);
@@ -184,6 +189,35 @@ function _bbsCompressPhoto(file) {
   });
 }
 
+/* 投稿者名管理 */
+function _bbsGetUserName() { return localStorage.getItem('bbsUserName') || ''; }
+function _bbsSetUserName(name) {
+  localStorage.setItem('bbsUserName', name);
+  document.getElementById('bbsAuthorName').textContent = name;
+}
+
+function _bbsOpenNameModal(required = false) {
+  const modal = document.getElementById('bbsNameModal');
+  const input = document.getElementById('bbsNameInput');
+  input.value = _bbsGetUserName();
+  modal.style.display = 'flex';
+  input.focus();
+  document.getElementById('bbsNameSave').onclick = () => {
+    const name = input.value.trim();
+    if (!name) { toast('名前を入力してください', 1500); return; }
+    _bbsSetUserName(name);
+    modal.style.display = 'none';
+  };
+  document.getElementById('bbsNameCancel').onclick = () => {
+    if (required) return;
+    modal.style.display = 'none';
+  };
+}
+document.getElementById('bbsNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('bbsNameSave').click();
+});
+document.getElementById('bbsChangeNameBtn').addEventListener('click', () => _bbsOpenNameModal(false));
+
 const bbsPanel = document.getElementById('bbsPanel');
 const bbsFloatBtn = document.getElementById('bbsFloatBtn');
 const bbsBadge = document.getElementById('bbsBadge');
@@ -200,6 +234,8 @@ function _bbsMarkSeen() {
 }
 
 async function openBbsPanel() {
+  if (!_bbsGetUserName()) { _bbsOpenNameModal(true); return; }
+  document.getElementById('bbsAuthorName').textContent = _bbsGetUserName();
   bbsPanel.style.display = 'flex';
   bbsPanel.classList.remove('collapsed');
   bbsFloatBtn.classList.add('active');
@@ -311,6 +347,7 @@ document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
   const post = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     ts: new Date().toISOString(), cat, comment,
+    author: _bbsGetUserName(),
     lat: _bbsLat, lng: _bbsLng,
     photo: _bbsPhotoB64 || null
   };
