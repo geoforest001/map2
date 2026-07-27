@@ -122,6 +122,29 @@ body {
 #bbsFormStatus { font-size: 11px; color: #888; text-align: center; margin-top: 6px; min-height: 16px; }
 #bbsLoadingMsg, #bbsEmptyMsg { text-align: center; color: #999; font-size: 12px; padding: 24px 0; }
 
+/* ---- 投稿者名登録モーダル ---- */
+#bbsNameModal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  z-index: 20000; align-items: center; justify-content: center;
+}
+#bbsNameBox {
+  background: #fff; border-radius: 14px; padding: 18px 18px 14px;
+  max-width: 260px; width: 88%; font-family: sans-serif;
+}
+#bbsNameInput {
+  width: 100%; box-sizing: border-box; border: 1px solid #ddd;
+  border-radius: 7px; padding: 8px 10px; font-size: 13px;
+}
+.bbs-name-save-btn {
+  flex: 1; padding: 9px; background: #06f; color: #fff;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer;
+}
+.bbs-name-cancel-btn {
+  flex: 1; padding: 9px; background: #f0f0f0; color: #333;
+  border: none; border-radius: 8px; font-size: 13px; cursor: pointer;
+}
+.bbs-author { font-size: 10px; color: #666; margin-top: 3px; }
+
 /* ---- トースト ---- */
 #toast {
   position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%);
