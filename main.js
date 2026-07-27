@@ -1003,7 +1003,6 @@ function _buildTrackCtrl() {
       _buildTrackCtrl();
     };
     div.appendChild(clrBtn);
-    _appendImportBtn(div);
   } else {
     const startBtn = document.createElement('button');
     startBtn.className = 'track-btn'; startBtn.textContent = '⏺ ログ開始';
