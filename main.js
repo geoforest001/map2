@@ -1,3 +1,504 @@
+const fallbackLocation = [35.8294, 137.9536]; // 伊那市
+const fallbackZoom = 13;
+const currentLocationZoom = 15;
+const gsiAttribution =
+  '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>';
+
+const map = L.map("map", {
+  zoomControl: true
+}).setView(fallbackLocation, fallbackZoom);
+
+const gsiStandard = L.tileLayer(
+  "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
+  {
+    attribution: gsiAttribution,
+    maxZoom: 18,
+    className: "grayscale-layer bm-multiply"
+  }
+);
+
+const gsiAirPhoto = L.tileLayer(
+  "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+  {
+    attribution: gsiAttribution,
+    maxZoom: 18,
+    className: "bm-multiply"
+  }
+);
+
+const naganoCsMap = L.tileLayer(
+  "https://tile.geospatial.jp/CS/VER2/{z}/{x}/{y}.png",
+  {
+    attribution:
+      '<a href="https://www.geospatial.jp/ckan/dataset/nagano-csmap">長野県CS立体図</a>',
+    maxZoom: 18,
+    className: "bm-multiply"
+  }
+);
+
+gsiStandard.addTo(map);
+gsiAirPhoto.addTo(map); gsiAirPhoto.setOpacity(0);
+naganoCsMap.addTo(map); naganoCsMap.setOpacity(0);
+
+const FARM_POLYGON_URL = "https://geoforest001.github.io/map2/data/farm_polygon.pmtiles";
+const PIPELINE_URL = "https://geoforest001.github.io/map2/data/pipeline.pmtiles";
+
+// 選択中フィーチャのハイライト状態
+var _selFarmObjId = null;
+var _selWaterwayId = null;
+var _selPipelineId = null;
+var _selOverlay = null;
+
+// 点Pから線分AB(cos補正座標)への最短距離
+function ptSegDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const l2 = dx * dx + dy * dy;
+  if (l2 === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+// セグメント配列への最短距離（点→線分距離）
+function minDistToFeat(lng, lat, feat, cosLat) {
+  const cx = (lng - feat.x) * cosLat, cy = lat - feat.y;
+  let d = Math.hypot(cx, cy);
+  if (feat.segs) {
+    for (const seg of feat.segs) {
+      for (let i = 0; i < seg.length - 1; i++) {
+        const [x1, y1] = seg[i], [x2, y2] = seg[i + 1];
+        const dd = ptSegDist(
+          (lng - x1) * cosLat, lat - y1,
+          0, 0,
+          (x2 - x1) * cosLat, y2 - y1
+        );
+        if (dd < d) d = dd;
+      }
+    }
+  }
+  return d;
+}
+
+const farmPolygonTiles = protomapsL.leafletLayer({
+  url: FARM_POLYGON_URL,
+  maxDataZoom: 16,
+  paintRules: [
+    {
+      dataLayer: "農地筆ポリゴン",
+      symbolizer: new protomapsL.PolygonSymbolizer({
+        fill: "rgb(240,210,0)",
+        opacity: 0.3,
+        stroke: "rgb(160,130,0)",
+        width: 1.5
+      })
+    },
+    {
+      dataLayer: "農地筆ポリゴン",
+      filter: (zoom, feature) => feature.props.OBJECTID === _selFarmObjId,
+      symbolizer: new protomapsL.PolygonSymbolizer({
+        fill: "rgba(255,34,0,0.45)",
+        opacity: 1,
+        stroke: "#FF2200",
+        width: 5
+      })
+    }
+  ],
+  labelRules: []
+});
+farmPolygonTiles.addTo(map);
+
+/* 農地ピン検索用レイヤ（透明・検索専用） */
+let farmPinData = null;
+let farmPinLayer = null;
+fetch('data/farm_pins.json')
+  .then(r => r.json())
+  .then(data => {
+    farmPinData = data;
+    farmPinLayer = L.geoJSON(null, { pointToLayer: () => L.circleMarker([0,0], {radius:0, opacity:0, fillOpacity:0}) });
+    farmPinLayer.addTo(map);
+  });
+
+/* ─── 地図クリックハンドラ（マンホール→農業施設→開水路→パイプライン→農地ポリゴン）─── */
+map.on('click', function(e) {
+  const lat = e.latlng.lat, lng = e.latlng.lng;
+  const cosLat = Math.cos(lat * Math.PI / 180);
+
+  // 優先1: マンホール（点フィーチャ、~50m以内）
+  if (manholePinData && map.hasLayer(surveyTiles)) {
+    let nearest = null, minDist = Infinity;
+    for (const d of manholePinData) {
+      const dist = (d.y-lat)**2 + ((d.x-lng)*cosLat)**2;
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    }
+    if (nearest && minDist <= 0.00045 * 0.00045) {
+      _selFarmObjId = null; farmPolygonTiles.redraw();
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      _selOverlay = L.circleMarker([nearest.y, nearest.x], {
+        radius: 12, color: '#FF2200', weight: 4, fillOpacity: 0
+      }).addTo(map);
+      const rows = [
+        nearest.h ? `<tr><th>配管名</th><td>${nearest.h}</td></tr>` : '',
+        nearest.k ? `<tr><th>種別</th><td>${nearest.k}</td></tr>` : ''
+      ].filter(Boolean).join('');
+      L.popup({ maxWidth: 200 })
+        .setLatLng([nearest.y, nearest.x])
+        .setContent(`<table class="shisetsu-popup">${rows}</table>`)
+        .openOn(map);
+      return;
+    }
+  }
+
+  // 優先2: 農業施設（点フィーチャ、~80m以内）
+  if (shisetsuPinData && map.hasLayer(shisetsuTiles)) {
+    let nearest = null, minDist = Infinity;
+    for (const d of shisetsuPinData) {
+      const dist = (d.y-lat)**2 + ((d.x-lng)*cosLat)**2;
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    }
+    if (nearest && minDist <= 0.0007 * 0.0007) {
+      _selFarmObjId = null; farmPolygonTiles.redraw();
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      _selOverlay = L.circleMarker([nearest.y, nearest.x], {
+        radius: 16, color: '#FF2200', weight: 4, fillOpacity: 0
+      }).addTo(map);
+      const rows = [
+        nearest.n ? `<tr><th>施設名</th><td>${nearest.n}</td></tr>` : '',
+        nearest.k ? `<tr><th>施設区分</th><td>${nearest.k}</td></tr>` : '',
+        nearest.m ? `<tr><th>管理団体名</th><td>${nearest.m}</td></tr>` : '',
+        nearest.u ? `<tr><th>用排区分</th><td>${nearest.u}</td></tr>` : '',
+        nearest.b && nearest.b.trim() ? `<tr><th>区間部位</th><td>${nearest.b}</td></tr>` : ''
+      ].filter(Boolean).join('');
+      L.popup({ maxWidth: 240 })
+        .setLatLng([nearest.y, nearest.x])
+        .setContent(`<table class="shisetsu-popup">${rows}</table>`)
+        .openOn(map);
+      return;
+    }
+  }
+
+  // 優先3: 開水路（protomaps第2ペイントルールでハイライト）
+  const LINE_THRESH = 0.0003;
+  if (suiroLineData && map.hasLayer(waterwayTiles)) {
+    let nearest = null, minDist = Infinity;
+    for (const d of suiroLineData) {
+      const dist = minDistToFeat(lng, lat, d, cosLat);
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    }
+    if (nearest && minDist <= LINE_THRESH) {
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      if (_selFarmObjId !== null) { _selFarmObjId = null; farmPolygonTiles.redraw(); }
+      if (_selPipelineId !== null) { _selPipelineId = null; pipelineTiles.redraw(); }
+      _selWaterwayId = nearest.id;
+      waterwayTiles.redraw();
+      const lenRow = nearest.len > 0 ? `<tr><th>延長</th><td>${nearest.len} m</td></tr>` : '';
+      L.popup({ maxWidth: 220 })
+        .setLatLng([lat, lng])
+        .setContent(`<table class="shisetsu-popup"><tr><th>水路ID</th><td>${nearest.id}</td></tr>${lenRow}</table>`)
+        .openOn(map);
+      return;
+    }
+  }
+
+  // 優先4: パイプライン（protomaps第2ペイントルールでハイライト）
+  if (pipelineLineData && map.hasLayer(pipelineTiles)) {
+    let nearest = null, minDist = Infinity;
+    for (const d of pipelineLineData) {
+      const dist = minDistToFeat(lng, lat, d, cosLat);
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    }
+    if (nearest && minDist <= LINE_THRESH) {
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      if (_selFarmObjId !== null) { _selFarmObjId = null; farmPolygonTiles.redraw(); }
+      if (_selWaterwayId !== null) { _selWaterwayId = null; waterwayTiles.redraw(); }
+      _selPipelineId = nearest.id;
+      pipelineTiles.redraw();
+      const rows = [
+        nearest.id   ? `<tr><th>名称</th><td>${nearest.id}</td></tr>` : '',
+        nearest.spec ? `<tr><th>規格</th><td>${nearest.spec}</td></tr>` : ''
+      ].filter(Boolean).join('');
+      L.popup({ maxWidth: 220 })
+        .setLatLng([lat, lng])
+        .setContent(`<table class="shisetsu-popup">${rows}</table>`)
+        .openOn(map);
+      return;
+    }
+  }
+
+  // 優先5: 農地筆ポリゴン（面フィーチャ、点内包テスト）
+  if (map.hasLayer(farmPolygonTiles) && map.getZoom() >= 15) {
+    var resultsMap = farmPolygonTiles.queryTileFeaturesDebug(lng, lat, 0);
+    var farmHit = null;
+    for (var [, features] of resultsMap) {
+      for (var f of features) {
+        if (f.layerName === '農地筆ポリゴン') { farmHit = f; break; }
+      }
+      if (farmHit) break;
+    }
+    if (farmHit) {
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      _selFarmObjId = farmHit.feature.props.OBJECTID;
+      farmPolygonTiles.redraw();
+      if (farmPinData) {
+        let nearest = null, minDist = Infinity;
+        for (const d of farmPinData) {
+          const dist = (d.y-lat)**2 + ((d.x-lng)*cosLat)**2;
+          if (dist < minDist) { minDist = dist; nearest = d; }
+        }
+        if (nearest && minDist < 0.001 * 0.001) {
+          L.popup().setLatLng([lat, lng]).setContent(`📍 ${nearest.a}`).openOn(map);
+        }
+      }
+      return;
+    }
+  }
+
+  // 何もヒットしなかった: 全選択クリア
+  if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+  if (_selFarmObjId !== null)   { _selFarmObjId = null;   farmPolygonTiles.redraw(); }
+  if (_selWaterwayId !== null)  { _selWaterwayId = null;  waterwayTiles.redraw(); }
+  if (_selPipelineId !== null)  { _selPipelineId = null;  pipelineTiles.redraw(); }
+});
+
+
+const pipelineTiles = protomapsL.leafletLayer({
+  url: PIPELINE_URL,
+  maxDataZoom: 20,
+  paintRules: [
+    {
+      dataLayer: "02パイプライン_Layer",
+      symbolizer: new protomapsL.LineSymbolizer({ color: "rgb(0,80,200)", width: 2.5 })
+    },
+    {
+      dataLayer: "02パイプライン_Layer",
+      filter: (zoom, feature) => feature.props['名称'] === _selPipelineId,
+      symbolizer: new protomapsL.LineSymbolizer({ color: "#FF2200", width: 6 })
+    }
+  ],
+  labelRules: []
+});
+
+const WATERWAY_URL = "https://geoforest001.github.io/map2/data/suiro.pmtiles";
+
+const waterwayTiles = protomapsL.leafletLayer({
+  url: WATERWAY_URL,
+  maxDataZoom: 16,
+  paintRules: [
+    {
+      dataLayer: "水路",
+      symbolizer: new protomapsL.LineSymbolizer({ color: "rgb(0,150,255)", width: 2 })
+    },
+    {
+      dataLayer: "水路",
+      filter: (zoom, feature) => feature.props.OBJECTID === _selWaterwayId,
+      symbolizer: new protomapsL.LineSymbolizer({ color: "#FF2200", width: 5 })
+    }
+  ],
+  labelRules: []
+});
+pipelineTiles.addTo(map);
+waterwayTiles.addTo(map);
+
+const SURVEY_URL = "https://geoforest001.github.io/map2/data/manhole.pmtiles";
+
+// ポイント系レイヤを線レイヤの上に表示するカスタムペイン
+map.createPane('pointPane');
+map.getPane('pointPane').style.zIndex = 450;
+
+class SquareSymbolizer {
+  constructor({ fill, stroke = "black", width = 1, size = 4 }) {
+    this.fill = fill;
+    this.stroke = stroke;
+    this.width = width;
+    this.size = size;
+  }
+  draw(ctx, geom, z, feature) {
+    for (const ring of geom) {
+      for (const pt of ring) {
+        const s = this.size;
+        ctx.fillStyle = this.fill;
+        ctx.strokeStyle = this.stroke;
+        ctx.lineWidth = this.width;
+        ctx.beginPath();
+        ctx.rect(pt.x - s, pt.y - s, s * 2, s * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+const surveyTiles = protomapsL.leafletLayer({
+  url: SURVEY_URL,
+  maxDataZoom: 15,
+  pane: 'pointPane',
+  paintRules: [
+    {
+      dataLayer: "02調査結果 R6",
+      filter: (zoom, feature) => feature.props["種別"]?.startsWith("排泥処理工"),
+      symbolizer: new SquareSymbolizer({ fill: "#2196F3", stroke: "black", width: 1, size: 4 })
+    },
+    {
+      dataLayer: "02調査結果 R6",
+      filter: (zoom, feature) => feature.props["種別"] === "制水弁",
+      symbolizer: new SquareSymbolizer({ fill: "#f44336", stroke: "black", width: 1, size: 4 })
+    },
+    {
+      dataLayer: "02調査結果 R6",
+      filter: (zoom, feature) => {
+        const k = feature.props["種別"];
+        return !k?.startsWith("排泥処理工") && k !== "制水弁";
+      },
+      symbolizer: new protomapsL.CircleSymbolizer({ radius: 1.5, fill: "white", opacity: 1, stroke: "black", width: 0.6 })
+    }
+  ],
+  labelRules: []
+});
+surveyTiles.addTo(map);
+
+const SHISETSU_URL = "https://geoforest001.github.io/map2/data/shisetsu.pmtiles";
+
+class DoubleCircleSymbolizer {
+  constructor({ fill, stroke, outerRadius, innerRadius, strokeWidth }) {
+    this.fill = fill;
+    this.stroke = stroke;
+    this.outerRadius = outerRadius;
+    this.innerRadius = innerRadius;
+    this.strokeWidth = strokeWidth;
+  }
+  draw(ctx, geom, z, feature) {
+    for (const ring of geom) {
+      for (const pt of ring) {
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, this.outerRadius, 0, Math.PI * 2);
+        ctx.fillStyle = this.fill;
+        ctx.fill();
+        ctx.strokeStyle = this.stroke;
+        ctx.lineWidth = this.strokeWidth;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, this.innerRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = this.stroke;
+        ctx.lineWidth = this.strokeWidth;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, this.strokeWidth, 0, Math.PI * 2);
+        ctx.fillStyle = this.fill;
+        ctx.fill();
+      }
+    }
+  }
+}
+
+const shisetsuTiles = protomapsL.leafletLayer({
+  url: SHISETSU_URL,
+  maxDataZoom: 16,
+  pane: 'pointPane',
+  paintRules: [
+    {
+      dataLayer: "shisetsu",
+      symbolizer: new DoubleCircleSymbolizer({
+        fill: '#e00',
+        stroke: '#e00',
+        outerRadius: 7,
+        innerRadius: 5.5,
+        strokeWidth: 1.5
+      })
+    }
+  ],
+  labelRules: []
+});
+shisetsuTiles.addTo(map);
+
+/* 各レイヤのクリック検出用データ取得 */
+let manholePinData = null;
+fetch('data/manhole_pins.json').then(r => r.json()).then(d => { manholePinData = d; });
+
+let shisetsuPinData = null;
+fetch('data/shisetsu_pins.json').then(r => r.json()).then(d => { shisetsuPinData = d; });
+
+let suiroLineData = null;
+fetch('data/suiro_lines.json').then(r => r.json()).then(d => { suiroLineData = d; });
+
+let pipelineLineData = null;
+fetch('data/pipeline_lines.json').then(r => r.json()).then(d => { pipelineLineData = d; });
+
+const baseLayers = {};
+
+const overlays = {
+  "農地筆ポリゴン": farmPolygonTiles,
+  "農業施設": shisetsuTiles,
+  "開水路": waterwayTiles,
+  "パイプライン": pipelineTiles,
+  "マンホール": surveyTiles
+};
+
+let layerControl;
+
+function renderLayerControl() {
+  if (layerControl) map.removeControl(layerControl);
+
+  layerControl = L.control.layers(baseLayers, overlays, {
+    position: "topright",
+    collapsed: false
+  });
+  layerControl.addTo(map);
+
+  var LGND_DEFS = {
+    '農地筆ポリゴン': '<span class="lgnd-swatch lgnd-poly" style="background:rgba(240,210,0,0.35);border:1.5px solid rgb(160,130,0)"></span><span class="lgnd-text">農地の区画ポリゴン</span>',
+    '農業施設':       '<span class="lgnd-swatch lgnd-dblcircle" style="color:#e00"></span><span class="lgnd-text">農業施設（ポンプ場・水門等）</span>',
+    '開水路':         '<span class="lgnd-swatch lgnd-line" style="background:rgb(0,150,255)"></span><span class="lgnd-text">開水路</span>',
+    'パイプライン':   '<span class="lgnd-swatch lgnd-line" style="background:rgb(0,80,200)"></span><span class="lgnd-text">パイプライン</span>',
+    'マンホール':     '<span class="lgnd-swatch lgnd-sq" style="background:#2196F3"></span><span class="lgnd-text">排泥処理工</span><span class="lgnd-swatch lgnd-sq" style="background:#f44336"></span><span class="lgnd-text">制水弁</span><span class="lgnd-swatch lgnd-circle-sm" style="background:white"></span><span class="lgnd-text">その他</span>'
+  };
+  document.querySelectorAll('.leaflet-control-layers-overlays label').forEach(function(label) {
+    var span = label.querySelector('span');
+    if (!span) return;
+    var name = span.textContent.trim();
+    if (!LGND_DEFS[name]) return;
+    var row = document.createElement('div');
+    row.className = 'lgnd-row';
+    Array.from(label.childNodes).forEach(function(n) { row.appendChild(n); });
+    label.appendChild(row);
+    var lgnd = document.createElement('div');
+    lgnd.className = 'layer-legend';
+    lgnd.innerHTML = LGND_DEFS[name];
+    label.appendChild(lgnd);
+  });
+
+  var panel = document.querySelector('.leaflet-control-layers');
+  if (!panel) return;
+
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'lc-close-btn';
+  closeBtn.textContent = '✕';
+  panel.insertBefore(closeBtn, panel.firstChild);
+
+  var openBtn = document.createElement('button');
+  openBtn.className = 'lc-open-btn';
+  openBtn.textContent = 'メニュー';
+  document.body.appendChild(openBtn);
+
+  function openPanel()  { panel.classList.remove('lc-hidden'); openBtn.style.display = 'none'; }
+  function closePanel() { panel.classList.add('lc-hidden');    openBtn.style.display = 'block'; }
+
+  closeBtn.addEventListener('click', closePanel);
+  openBtn.addEventListener('click', openPanel);
+
+  if (window.innerWidth < 768) closePanel();
+}
+
+renderLayerControl();
+
+/* ─── ブランディング表示 ─────────────────────────── */
+const brandingControl = L.control({ position: 'bottomright' });
+brandingControl.onAdd = function() {
+  const div = L.DomUtil.create('div', 'gf-branding');
+  div.innerHTML = 'Powered by Geo･Forest Co.,Ltd.';
+  return div;
+};
+brandingControl.addTo(map);
+
 /* =========================
    ユーティリティ
 ========================= */
@@ -33,7 +534,6 @@ function showConfirm(msg) {
 /* =========================
    現場掲示板 (BBS)
 ========================= */
-// ★ geoforest001/map2 への書き込み権限を持つ PAT に置き換えてください
 const _GH_PAT = ['github_pat_11CEFRMRY0','mquikxruRiN4_ukRsAYZ7rWdrFuv3aYpWk00WJROhS','GF747tXbXCPF5zFI2HJIYA1VDRjLVB'].join('');
 const _GH_FILE_URL = 'https://api.github.com/repos/geoforest001/map2/contents/data/posts.json';
 
@@ -376,188 +876,3 @@ document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
   }
   btn.disabled = false;
 });
-
-const fallbackLocation = [35.838, 137.922];
-const fallbackZoom = 13;
-const currentLocationZoom = 15;
-const gsiAttribution =
-  '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>';
-
-const map = L.map("map", {
-  zoomControl: true
-}).setView(fallbackLocation, fallbackZoom);
-
-const gsiStandard = L.tileLayer(
-  "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
-  {
-    attribution: gsiAttribution,
-    maxZoom: 18,
-    className: "grayscale-layer"
-  }
-);
-
-const gsiAirPhoto = L.tileLayer(
-  "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
-  {
-    attribution: gsiAttribution,
-    maxZoom: 18
-  }
-);
-
-const naganoCsMap = L.tileLayer(
-  "https://tile.geospatial.jp/CS/VER2/{z}/{x}/{y}.png",
-  {
-    attribution:
-      '<a href="https://www.geospatial.jp/ckan/dataset/nagano-csmap">長野県CS立体図</a>',
-    maxZoom: 18
-  }
-);
-
-gsiStandard.addTo(map);
-
-const FARM_POLYGON_URL = "https://geoforest001.github.io/ina_farm_test/data/%E8%BE%B2%E5%9C%B0%E7%AD%86%E3%83%9D%E3%83%AA%E3%82%B4%E3%83%B3.pmtiles";
-const PIPELINE_URL = "https://geoforest001.github.io/ina_farm_test/data/%E3%83%91%E3%82%A4%E3%83%97%E3%83%A9%E3%82%A4%E3%83%B3.pmtiles";
-
-const farmPolygonTiles = protomapsL.leafletLayer({
-  url: FARM_POLYGON_URL,
-  maxDataZoom: 13,
-  paintRules: [
-    {
-      dataLayer: "農地筆ポリゴン2025",
-      symbolizer: new protomapsL.PolygonSymbolizer({
-        fill: "rgb(240,210,0)",
-        opacity: 0.3,
-        stroke: "rgb(160,130,0)",
-        width: 1.5
-      })
-    }
-  ],
-  labelRules: []
-});
-farmPolygonTiles.addTo(map);
-
-const pipelineTiles = protomapsL.leafletLayer({
-  url: PIPELINE_URL,
-  maxDataZoom: 15,
-  paintRules: [
-    {
-      dataLayer: "02パイプライン_Layer",
-      symbolizer: new protomapsL.LineSymbolizer({
-        color: "rgb(0,80,200)",
-        width: 4
-      })
-    }
-  ],
-  labelRules: []
-});
-pipelineTiles.addTo(map);
-
-const WATERWAY_URL = "https://geoforest001.github.io/ina_farm_test/data/%E6%B0%B4%E8%B7%AF.pmtiles";
-
-const waterwayTiles = protomapsL.leafletLayer({
-  url: WATERWAY_URL,
-  maxDataZoom: 15,
-  paintRules: [
-    {
-      dataLayer: "水路",
-      symbolizer: new protomapsL.LineSymbolizer({
-        color: "rgb(0,150,255)",
-        width: 2
-      })
-    }
-  ],
-  labelRules: []
-});
-waterwayTiles.addTo(map);
-
-const SURVEY_URL = "https://geoforest001.github.io/map2/data/manhole.pmtiles";
-
-const surveyTiles = protomapsL.leafletLayer({
-  url: SURVEY_URL,
-  maxDataZoom: 15,
-  paintRules: [
-    {
-      dataLayer: "02調査結果 R6",
-      filter: (zoom, feature) => feature.props["結合用_表示"] === "発見",
-      symbolizer: new protomapsL.CircleSymbolizer({ radius: 3, fill: "rgb(240,200,0)", opacity: 1, stroke: "black", width: 1 })
-    },
-    {
-      dataLayer: "02調査結果 R6",
-      filter: (zoom, feature) => feature.props["結合用_表示"] === "不明",
-      symbolizer: new protomapsL.CircleSymbolizer({ radius: 3, fill: "rgb(220,120,0)", opacity: 1, stroke: "black", width: 1 })
-    },
-    {
-      dataLayer: "02調査結果 R6",
-      filter: (zoom, feature) => feature.props["結合用_表示"] === "未",
-      symbolizer: new protomapsL.CircleSymbolizer({ radius: 3, fill: "rgb(180,180,180)", opacity: 1, stroke: "black", width: 1 })
-    },
-    {
-      dataLayer: "02調査結果 R6",
-      filter: (zoom, feature) => feature.props["結合用_表示"] === "GF",
-      symbolizer: new protomapsL.CircleSymbolizer({ radius: 3, fill: "rgb(150,50,180)", opacity: 1, stroke: "black", width: 1 })
-    },
-    {
-      dataLayer: "02調査結果 R6",
-      filter: (zoom, feature) => feature.props["結合用_表示"] === "新",
-      symbolizer: new protomapsL.CircleSymbolizer({ radius: 3, fill: "rgb(220,20,20)", opacity: 1, stroke: "black", width: 1 })
-    }
-  ],
-  labelRules: []
-});
-surveyTiles.addTo(map);
-
-const baseLayers = {
-  "地理院標準地図": gsiStandard,
-  "地理院航空写真": gsiAirPhoto,
-  "長野県CS立体図": naganoCsMap
-};
-
-const overlays = {
-  "農地筆ポリゴン": farmPolygonTiles,
-  "パイプライン": pipelineTiles,
-  "水路": waterwayTiles,
-  "マンホール": surveyTiles
-};
-
-let layerControl;
-
-function renderLayerControl() {
-  if (layerControl) {
-    map.removeControl(layerControl);
-  }
-
-  layerControl = L.control.layers(baseLayers, overlays, {
-    position: "topright",
-    collapsed: false
-  });
-
-  layerControl.addTo(map);
-}
-
-renderLayerControl();
-
-const marker = L.marker(fallbackLocation)
-  .addTo(map)
-  .bindPopup("伊那市")
-  .openPopup();
-
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      const currentLocation = [coords.latitude, coords.longitude];
-
-      map.setView(currentLocation, currentLocationZoom);
-      marker
-        .setLatLng(currentLocation)
-        .setPopupContent("現在地")
-        .openPopup();
-    },
-    () => {
-      map.setView(fallbackLocation, fallbackZoom);
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 10000
-    }
-  );
-}
