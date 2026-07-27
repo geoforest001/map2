@@ -550,13 +550,28 @@ async function _bbsFetchPosts() {
     const res = await fetch(_GH_FILE_URL, {
       headers: { 'Authorization': 'Bearer ' + _GH_PAT, 'Accept': 'application/vnd.github+json' }
     });
-    if (res.status === 404) { _bbsPosts = []; _bbsSha = null; return; }
+    if (res.status === 404) { _bbsPosts = []; _bbsSha = null; _bbsCheckNew(); return true; }
     if (!res.ok) throw new Error('GitHub API ' + res.status);
     const data = await res.json();
     _bbsSha = data.sha;
-    _bbsPosts = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))))) || [];
-  } catch(e) { console.error('[BBS fetch]', e); toast('掲示板の読込失敗', 2500); }
-  _bbsCheckNew();
+    let parsed;
+    if (data.content) {
+      parsed = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
+    } else if (data.download_url) {
+      const raw = await fetch(data.download_url + '?_=' + Date.now());
+      if (!raw.ok) throw new Error('download_url ' + raw.status);
+      parsed = await raw.json();
+    } else {
+      throw new Error('content unavailable');
+    }
+    _bbsPosts = parsed || [];
+    _bbsCheckNew();
+    return true;
+  } catch(e) {
+    console.error('[BBS fetch]', e);
+    toast('掲示板の読込失敗 — 既存の投稿はそのまま表示中', 3000);
+    return false;
+  }
 }
 
 async function _bbsSavePosts(posts, _depth = 0) {
@@ -768,11 +783,11 @@ async function openBbsPanel() {
   document.getElementById('bbsLoadingMsg').style.display = 'block';
   document.getElementById('bbsEmptyMsg').style.display = 'none';
   document.getElementById('bbsList').innerHTML = '';
-  await _bbsFetchPosts();
-  _bbsRenderMarkers();
+  if (await _bbsFetchPosts()) _bbsRenderMarkers();
   _bbsRenderList();
   if (!_bbsTimer) _bbsTimer = setInterval(async () => {
-    await _bbsFetchPosts(); _bbsRenderMarkers(); _bbsRenderList();
+    if (await _bbsFetchPosts()) _bbsRenderMarkers();
+    _bbsRenderList();
   }, 30000);
 }
 
@@ -798,10 +813,11 @@ bbsFloatBtn.addEventListener('click', () => {
 });
 
 (async () => {
-  await _bbsFetchPosts();
-  _bbsRenderMarkers();
+  if (await _bbsFetchPosts()) _bbsRenderMarkers();
   setInterval(async () => {
-    if (bbsPanel.style.display !== 'flex') { await _bbsFetchPosts(); _bbsRenderMarkers(); }
+    if (bbsPanel.style.display !== 'flex') {
+      if (await _bbsFetchPosts()) _bbsRenderMarkers();
+    }
   }, 60000);
 })();
 
@@ -810,7 +826,8 @@ document.getElementById('bbsCollapseBtn').addEventListener('click', () => { bbsP
 document.getElementById('bbsRefreshBtn').addEventListener('click', async () => {
   document.getElementById('bbsLoadingMsg').style.display = 'block';
   document.getElementById('bbsList').innerHTML = '';
-  await _bbsFetchPosts(); _bbsRenderMarkers(); _bbsRenderList();
+  if (await _bbsFetchPosts()) _bbsRenderMarkers();
+  _bbsRenderList();
   toast('更新しました', 1500);
 });
 
