@@ -187,6 +187,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .loc-btn:hover { background: #f4f4f4; }
+.loc-btn.active { color: #2979ff; background: #e8f0fe; border-color: #2979ff; }
 .loc-btn.loading { color: #2979ff; animation: loc-spin 1s linear infinite; }
 @keyframes loc-spin {
   from { transform: rotate(0deg); }
