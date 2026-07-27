@@ -1019,7 +1019,7 @@ function _buildTrackCtrl() {
   }
 }
 
-const trackControl = L.control({ position: 'bottomleft' });
+const trackControl = L.control({ position: 'topright' });
 trackControl.onAdd = function() {
   const div = L.DomUtil.create('div', 'track-ctrl');
   div.id = 'trackCtrl';
