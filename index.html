@@ -82,7 +82,11 @@
           </div>
           <div class="bbs-field">
             <label>写真（任意）</label>
-            <button class="bbs-action-btn" id="bbsPickPhotoBtn">📷 写真を選択</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="bbs-action-btn" id="bbsTakePhotoBtn">📷 撮影する</button>
+              <button class="bbs-action-btn" id="bbsPickPhotoBtn">🖼 ギャラリー</button>
+            </div>
+            <input id="bbsPhotoCapture" type="file" accept="image/*" capture="environment" style="display:none">
             <input id="bbsPhotoInput" type="file" accept="image/*" style="display:none">
             <img id="bbsPhotoPreview" style="display:none;max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;cursor:pointer">
           </div>
@@ -109,6 +113,7 @@
       </div>
     </div>
 
-    <script src="./main.js?v=7"></script>
+    <script src="https://unpkg.com/exifr/dist/mini.legacy.umd.js"></script>
+    <script src="./main.js?v=8"></script>
   </body>
 </html>
