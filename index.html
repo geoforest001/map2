@@ -39,6 +39,16 @@
         <button id="bbsClose">✕</button>
       </div>
       <div id="bbsBody">
+        <!-- 投稿者バー -->
+        <div id="bbsAuthorBar">
+          <span id="bbsAuthorBarLabel">👤 投稿者：</span>
+          <span id="bbsAuthorBarName">未登録</span>
+          <div id="bbsAuthorEditor" style="display:none">
+            <input id="bbsAuthorInput" type="text" placeholder="名前を入力..." maxlength="20">
+            <button id="bbsAuthorSaveBtn">登録</button>
+          </div>
+          <button id="bbsAuthorEditBtn">✏️</button>
+        </div>
         <div class="bbs-tabs">
           <button class="bbs-tab active" id="bbsTabList" data-tab="list">投稿一覧</button>
           <button class="bbs-tab" id="bbsTabNew" data-tab="new">＋ 新規投稿</button>
@@ -76,27 +86,8 @@
             <input id="bbsPhotoInput" type="file" accept="image/*" style="display:none">
             <img id="bbsPhotoPreview" style="display:none;max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;cursor:pointer">
           </div>
-          <div class="bbs-field">
-            <label>投稿者</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span id="bbsAuthorName" style="font-size:12px;color:#333"></span>
-              <button class="bbs-action-btn" id="bbsChangeNameBtn">✏️ 変更</button>
-            </div>
-          </div>
           <button id="bbsSubmitBtn">📤 投稿する</button>
           <div id="bbsFormStatus"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 投稿者名登録モーダル -->
-    <div id="bbsNameModal">
-      <div id="bbsNameBox">
-        <div style="font-size:14px;font-weight:bold;margin-bottom:10px">投稿者名を登録</div>
-        <input id="bbsNameInput" type="text" placeholder="名前を入力..." maxlength="20">
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button id="bbsNameCancel" class="bbs-name-cancel-btn">キャンセル</button>
-          <button id="bbsNameSave" class="bbs-name-save-btn">登録</button>
         </div>
       </div>
     </div>
