@@ -34,10 +34,18 @@ function jmaTime(intervalMin = 5, lagMin = 5) {
   return `${d.getUTCFullYear()}${p(d.getUTCMonth()+1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}00`;
 }
 
+async function _jmaFetch(url, opts) {
+  try {
+    const r = await fetch(url, opts);
+    if (r.ok) return r;
+  } catch {}
+  return rpFetch(url, opts);
+}
+
 async function getJmaValidTime(type, candidates) {
   for (const file of (candidates || ['targetTimes_N1.json'])) {
     try {
-      const res = await fetch(`https://www.jma.go.jp/bosai/jmatile/data/${type}/${file}`);
+      const res = await _jmaFetch(`https://www.jma.go.jp/bosai/jmatile/data/${type}/${file}`);
       if (!res.ok) continue;
       const arr = await res.json();
       if (!Array.isArray(arr) || !arr.length) continue;
@@ -92,18 +100,18 @@ async function wxApplyLayerState(key) {
 /* ─── AMeDASマーカーレイヤ ──────────────────── */
 async function fetchAmedasMarkers() {
   try {
-    const timeRes = await fetch('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt');
+    const timeRes = await _jmaFetch('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt');
     if (!timeRes.ok) throw new Error(`latest_time HTTP ${timeRes.status}`);
     const rawTime = (await timeRes.text()).trim();
     const m = rawTime.match(/(\d{4})\D(\d{2})\D(\d{2})\D(\d{2}):(\d{2}):(\d{2})/);
     if (!m) throw new Error('time parse failed');
     const timeStr = `${m[1]}${m[2]}${m[3]}${m[4]}${m[5]}${m[6]}`;
     if (!_amedasTable) {
-      const tRes = await fetch('https://www.jma.go.jp/bosai/amedas/const/amedastable.json');
+      const tRes = await _jmaFetch('https://www.jma.go.jp/bosai/amedas/const/amedastable.json');
       if (!tRes.ok) throw new Error(`amedastable HTTP ${tRes.status}`);
       _amedasTable = await tRes.json();
     }
-    const dataRes = await fetch(`https://www.jma.go.jp/bosai/amedas/data/map/${timeStr}.json`);
+    const dataRes = await _jmaFetch(`https://www.jma.go.jp/bosai/amedas/data/map/${timeStr}.json`);
     if (!dataRes.ok) throw new Error(`map data HTTP ${dataRes.status}`);
     const data = await dataRes.json();
     amedasMarkers.forEach(mk => map.removeLayer(mk)); amedasMarkers = [];
@@ -148,7 +156,7 @@ async function _startRainAnim() {
   const lbl = document.getElementById('lblLRainAnim');
   if (status) { status.textContent = '🌀 取得中...'; status.style.display = 'block'; }
   try {
-    const res = await fetch('https://www.jma.go.jp/bosai/jmatile/data/rasrf/targetTimes.json',{cache:'no-store'});
+    const res = await _jmaFetch('https://www.jma.go.jp/bosai/jmatile/data/rasrf/targetTimes.json',{cache:'no-store'});
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arr = await res.json();
     if (!Array.isArray(arr) || !arr.length) throw new Error('フレームなし');
