@@ -533,31 +533,47 @@ function renderLayerControl() {
   closeBtn.addEventListener('click', closePanel);
   openBtn.addEventListener('click', openPanel);
 
-  // 背景地図セクション（乗算合成・複数選択可）
+  // 背景地図セクション（乗算合成・複数選択・透過スライダー）
   const bmSection = document.createElement('div');
   bmSection.style.cssText = 'padding:4px 2px 2px';
   bmSection.innerHTML = `
     <span class="lc-section-label">背景地図（乗算合成）</span>
-    <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
-      <input type="checkbox" id="chkStd" checked> <span>地理院標準地図</span>
-    </label>
-    <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
-      <input type="checkbox" id="chkAirPhoto"> <span>空中写真</span>
-    </label>
-    <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
-      <input type="checkbox" id="chkCsMap"> <span>CS立体図</span>
-    </label>`;
+    <div class="bm-item">
+      <div class="bm-row"><label><input type="checkbox" id="chkStd" checked> 地理院標準地図</label><span class="bm-pct" id="pctStd">100%</span></div>
+      <input type="range" class="bm-slider" id="sldStd" min="0" max="100" value="100">
+    </div>
+    <div class="bm-item">
+      <div class="bm-row"><label><input type="checkbox" id="chkAirPhoto"> 空中写真</label><span class="bm-pct" id="pctAir">0%</span></div>
+      <input type="range" class="bm-slider" id="sldAirPhoto" min="0" max="100" value="0" disabled style="opacity:0.4">
+    </div>
+    <div class="bm-item">
+      <div class="bm-row"><label><input type="checkbox" id="chkCsMap"> CS立体図</label><span class="bm-pct" id="pctCs">0%</span></div>
+      <input type="range" class="bm-slider" id="sldCsMap" min="0" max="100" value="0" disabled style="opacity:0.4">
+    </div>`;
   panel.appendChild(bmSection);
 
-  document.getElementById('chkStd').addEventListener('change', function() {
-    gsiStandard.setOpacity(this.checked ? 1 : 0);
-  });
-  document.getElementById('chkAirPhoto').addEventListener('change', function() {
-    gsiAirPhoto.setOpacity(this.checked ? 1 : 0);
-  });
-  document.getElementById('chkCsMap').addEventListener('change', function() {
-    naganoCsMap.setOpacity(this.checked ? 1 : 0);
-  });
+  function setupBmLayer(chkId, sldId, pctId, layer, defaultVal) {
+    const chk = document.getElementById(chkId);
+    const sld = document.getElementById(sldId);
+    const pct = document.getElementById(pctId);
+    sld.value = defaultVal;
+    pct.textContent = defaultVal + '%';
+    layer.setOpacity(defaultVal / 100);
+    chk.addEventListener('change', function() {
+      sld.disabled = !this.checked;
+      sld.style.opacity = this.checked ? '1' : '0.4';
+      if (!this.checked) { layer.setOpacity(0); pct.textContent = '0%'; sld.value = 0; }
+      else { const v = parseInt(sld.value) || 100; sld.value = v; layer.setOpacity(v / 100); pct.textContent = v + '%'; }
+    });
+    sld.addEventListener('input', function() {
+      layer.setOpacity(this.value / 100);
+      pct.textContent = this.value + '%';
+    });
+  }
+
+  setupBmLayer('chkStd',      'sldStd',      'pctStd', gsiStandard, 100);
+  setupBmLayer('chkAirPhoto', 'sldAirPhoto', 'pctAir', gsiAirPhoto,   0);
+  setupBmLayer('chkCsMap',    'sldCsMap',    'pctCs',  naganoCsMap,   0);
 
   if (window.innerWidth < 768) closePanel();
 }
