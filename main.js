@@ -5,14 +5,16 @@ const gsiAttribution =
   '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>';
 
 const map = L.map("map", {
-  zoomControl: true
+  zoomControl: true,
+  maxZoom: 25
 }).setView(fallbackLocation, fallbackZoom);
 
 const gsiStandard = L.tileLayer(
   "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
   {
     attribution: gsiAttribution,
-    maxZoom: 18,
+    maxNativeZoom: 18,
+    maxZoom: 25,
     className: "grayscale-layer bm-multiply"
   }
 );
@@ -21,7 +23,8 @@ const gsiAirPhoto = L.tileLayer(
   "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
   {
     attribution: gsiAttribution,
-    maxZoom: 18,
+    maxNativeZoom: 18,
+    maxZoom: 25,
     className: "bm-multiply"
   }
 );
@@ -31,7 +34,8 @@ const naganoCsMap = L.tileLayer(
   {
     attribution:
       '<a href="https://www.geospatial.jp/ckan/dataset/nagano-csmap">長野県CS立体図</a>',
-    maxZoom: 18,
+    maxNativeZoom: 18,
+    maxZoom: 25,
     className: "bm-multiply"
   }
 );
