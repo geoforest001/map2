@@ -533,11 +533,14 @@ function renderLayerControl() {
   closeBtn.addEventListener('click', closePanel);
   openBtn.addEventListener('click', openPanel);
 
-  // 背景地図セクション
+  // 背景地図セクション（乗算合成・複数選択可）
   const bmSection = document.createElement('div');
   bmSection.style.cssText = 'padding:4px 2px 2px';
   bmSection.innerHTML = `
-    <span class="lc-section-label">背景地図</span>
+    <span class="lc-section-label">背景地図（乗算合成）</span>
+    <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
+      <input type="checkbox" id="chkStd" checked> <span>地理院標準地図</span>
+    </label>
     <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
       <input type="checkbox" id="chkAirPhoto"> <span>空中写真</span>
     </label>
@@ -546,6 +549,9 @@ function renderLayerControl() {
     </label>`;
   panel.appendChild(bmSection);
 
+  document.getElementById('chkStd').addEventListener('change', function() {
+    gsiStandard.setOpacity(this.checked ? 1 : 0);
+  });
   document.getElementById('chkAirPhoto').addEventListener('change', function() {
     gsiAirPhoto.setOpacity(this.checked ? 1 : 0);
   });
