@@ -122,7 +122,32 @@ map.on('click', function(e) {
   const lat = e.latlng.lat, lng = e.latlng.lng;
   const cosLat = Math.cos(lat * Math.PI / 180);
 
-  // 優先1: マンホール（点フィーチャ、~50m以内）
+  // 優先1: 苗木位置（点フィーチャ、~30m以内）
+  if (naegiPinData && map.hasLayer(naegiTiles)) {
+    let nearest = null, minDist = Infinity;
+    for (const d of naegiPinData) {
+      const dist = (d.y-lat)**2 + ((d.x-lng)*cosLat)**2;
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    }
+    if (nearest && minDist <= 0.00027 * 0.00027) {
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      _selOverlay = L.circleMarker([nearest.y, nearest.x], {
+        radius: 10, color: '#1b5e20', weight: 3, fillOpacity: 0
+      }).addTo(map);
+      const rows = [
+        `<tr><th>苗木番号</th><td>${nearest.n}</td></tr>`,
+        nearest.e ? `<tr><th>標高</th><td>${nearest.e} m</td></tr>` : '',
+        nearest.g ? `<tr><th>計測グループ</th><td>${nearest.g}</td></tr>` : ''
+      ].filter(Boolean).join('');
+      L.popup({ maxWidth: 200 })
+        .setLatLng([nearest.y, nearest.x])
+        .setContent(`<table class="shisetsu-popup">${rows}</table>`)
+        .openOn(map);
+      return;
+    }
+  }
+
+  // 優先2: マンホール（点フィーチャ、~50m以内）
   if (manholePinData && map.hasLayer(surveyTiles)) {
     let nearest = null, minDist = Infinity;
     for (const d of manholePinData) {
@@ -441,6 +466,9 @@ fetch('data/suiro_lines.json').then(r => r.json()).then(d => { suiroLineData = d
 
 let pipelineLineData = null;
 fetch('data/pipeline_lines.json').then(r => r.json()).then(d => { pipelineLineData = d; });
+
+let naegiPinData = null;
+fetch('data/naegi_pins.json').then(r => r.json()).then(d => { naegiPinData = d; });
 
 const baseLayers = {};
 
