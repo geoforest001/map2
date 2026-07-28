@@ -491,6 +491,7 @@ function renderLayerControl() {
   });
   layerControl.addTo(map);
 
+  // 凡例注入
   var LGND_DEFS = {
     '農地筆ポリゴン': '<span class="lgnd-swatch lgnd-poly" style="background:rgba(240,210,0,0.35);border:1.5px solid rgb(160,130,0)"></span><span class="lgnd-text">農地の区画ポリゴン</span>',
     '農業施設':       '<span class="lgnd-swatch lgnd-dblcircle" style="color:#e00"></span><span class="lgnd-text">農業施設（ポンプ場・水門等）</span>',
@@ -516,12 +517,17 @@ function renderLayerControl() {
 
   var panel = document.querySelector('.leaflet-control-layers');
   if (!panel) return;
+  var lcList = panel.querySelector('.leaflet-control-layers-list');
+  var base = panel.querySelector('.leaflet-control-layers-base');
+  var overlaysDiv = panel.querySelector('.leaflet-control-layers-overlays');
 
+  // ✕ 閉じるボタン
   var closeBtn = document.createElement('button');
   closeBtn.className = 'lc-close-btn';
   closeBtn.textContent = '✕';
   panel.insertBefore(closeBtn, panel.firstChild);
 
+  // メニューボタン（body直下・fixed）
   var openBtn = document.createElement('button');
   openBtn.className = 'lc-open-btn';
   openBtn.textContent = 'メニュー';
@@ -529,52 +535,112 @@ function renderLayerControl() {
 
   function openPanel()  { panel.classList.remove('lc-hidden'); openBtn.style.display = 'none'; }
   function closePanel() { panel.classList.add('lc-hidden');    openBtn.style.display = 'block'; }
-
   closeBtn.addEventListener('click', closePanel);
   openBtn.addEventListener('click', openPanel);
 
-  // 背景地図セクション（乗算合成・複数選択・透過スライダー）
-  const bmSection = document.createElement('div');
-  bmSection.style.cssText = 'padding:4px 2px 2px';
-  bmSection.innerHTML = `
-    <span class="lc-section-label">背景地図（乗算合成）</span>
-    <div class="bm-item">
-      <div class="bm-row"><label><input type="checkbox" id="chkStd" checked> 地理院標準地図</label><span class="bm-pct" id="pctStd">100%</span></div>
-      <input type="range" class="bm-slider" id="sldStd" min="0" max="100" value="100">
-    </div>
-    <div class="bm-item">
-      <div class="bm-row"><label><input type="checkbox" id="chkAirPhoto"> 空中写真</label><span class="bm-pct" id="pctAir">0%</span></div>
-      <input type="range" class="bm-slider" id="sldAirPhoto" min="0" max="100" value="0" disabled style="opacity:0.4">
-    </div>
-    <div class="bm-item">
-      <div class="bm-row"><label><input type="checkbox" id="chkCsMap"> CS立体図</label><span class="bm-pct" id="pctCs">0%</span></div>
-      <input type="range" class="bm-slider" id="sldCsMap" min="0" max="100" value="0" disabled style="opacity:0.4">
-    </div>`;
-  var overlaysDiv = panel.querySelector('.leaflet-control-layers-overlays');
-  panel.insertBefore(bmSection, overlaysDiv);
+  // ── ツールボックス（lcList 先頭）──
+  var tbDiv = document.createElement('div');
+  tbDiv.id = 'tbLayers';
+  var curBtn = document.createElement('button');
+  curBtn.className = 'tb-btn'; curBtn.id = 'btnCurrentLoc';
+  curBtn.innerHTML = '<span class="ico">📍</span><span>現在地</span>';
+  tbDiv.appendChild(curBtn);
+  lcList.insertBefore(tbDiv, lcList.firstChild);
 
-  function setupBmLayer(chkId, sldId, pctId, layer, defaultVal) {
-    const chk = document.getElementById(chkId);
-    const sld = document.getElementById(sldId);
-    const pct = document.getElementById(pctId);
-    sld.value = defaultVal;
-    pct.textContent = defaultVal + '%';
-    layer.setOpacity(defaultVal / 100);
-    chk.addEventListener('change', function() {
-      sld.disabled = !this.checked;
-      sld.style.opacity = this.checked ? '1' : '0.4';
-      if (!this.checked) { layer.setOpacity(0); pct.textContent = '0%'; sld.value = 0; }
-      else { const v = parseInt(sld.value) || 100; sld.value = v; layer.setOpacity(v / 100); pct.textContent = v + '%'; }
-    });
-    sld.addEventListener('input', function() {
-      layer.setOpacity(this.value / 100);
-      pct.textContent = this.value + '%';
+  curBtn.addEventListener('click', function() {
+    var btn = this; btn.classList.add('loading');
+    navigator.geolocation.getCurrentPosition(
+      function(pos) { map.setView([pos.coords.latitude, pos.coords.longitude], currentLocationZoom); btn.classList.remove('loading'); },
+      function() { toast('現在地を取得できませんでした', 3000); btn.classList.remove('loading'); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  // ── 農地検索ボックス（ツールボックス直後）──
+  var farmWrap = document.createElement('div');
+  farmWrap.id = 'farmSearchBox';
+  farmWrap.innerHTML = '<div class="addr-search-row">'
+    + '<input type="text" id="farmInput" placeholder="農地を検索（地番）..." autocomplete="off" spellcheck="false">'
+    + '<button id="farmClearBtn" title="クリア">×</button>'
+    + '<button id="farmBtn">検索</button></div>'
+    + '<ul id="farmResults"></ul>'
+    + '<div class="leaflet-control-layers-separator" style="margin:6px 0 0"></div>';
+  lcList.insertBefore(farmWrap, tbDiv.nextSibling);
+
+  var farmInput = document.getElementById('farmInput');
+  var farmList  = document.getElementById('farmResults');
+  var farmMarker = null;
+
+  function doFarmSearch() {
+    var q = farmInput.value.trim(); farmList.innerHTML = '';
+    if (!q || !farmPinData) return;
+    var hits = farmPinData.filter(function(d) { return d.a && d.a.includes(q); }).slice(0, 20);
+    if (!hits.length) {
+      var empty = document.createElement('li'); empty.className = 'addr-item'; empty.textContent = '該当なし';
+      farmList.appendChild(empty); return;
+    }
+    hits.forEach(function(d) {
+      var li = document.createElement('li'); li.className = 'addr-item'; li.textContent = d.a;
+      li.addEventListener('click', function() {
+        map.setView([d.y, d.x], 17);
+        if (farmMarker) map.removeLayer(farmMarker);
+        farmMarker = L.circleMarker([d.y, d.x], { radius:8, color:'#e53935', fillColor:'#e53935', fillOpacity:0.8, weight:2 })
+          .addTo(map).bindPopup('📍 ' + d.a).openPopup();
+        farmList.innerHTML = ''; farmInput.value = d.a;
+      });
+      farmList.appendChild(li);
     });
   }
+  document.getElementById('farmClearBtn').addEventListener('click', function() {
+    farmInput.value = ''; farmList.innerHTML = '';
+    if (farmMarker) { map.removeLayer(farmMarker); farmMarker = null; }
+    farmInput.focus();
+  });
+  document.getElementById('farmBtn').addEventListener('click', doFarmSearch);
+  farmInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doFarmSearch(); });
+  document.addEventListener('click', function(e) { if (!farmWrap.contains(e.target)) farmList.innerHTML = ''; }, true);
 
-  setupBmLayer('chkStd',      'sldStd',      'pctStd', gsiStandard, 100);
-  setupBmLayer('chkAirPhoto', 'sldAirPhoto', 'pctAir', gsiAirPhoto,   0);
-  setupBmLayer('chkCsMap',    'sldCsMap',    'pctCs',  naganoCsMap,   0);
+  // ── ベースマップ セクション（.leaflet-control-layers-base に注入）──
+  var baseLbl = document.createElement('div');
+  baseLbl.className = 'lc-section-label';
+  baseLbl.textContent = 'ベースマップ';
+  base.insertBefore(baseLbl, base.firstChild);
+
+  [
+    { id: 'bmStd', label: '地理院標準地図', layer: gsiStandard, defVal: 1.0 },
+    { id: 'bmAir', label: '地理院航空写真', layer: gsiAirPhoto, defVal: 0.0 },
+    { id: 'bmCs',  label: '長野県CS立体図', layer: naganoCsMap, defVal: 0.0 },
+  ].forEach(function(def) {
+    var item = document.createElement('div'); item.className = 'bm-item';
+    var row  = document.createElement('div'); row.className = 'bm-row';
+    var chk  = document.createElement('input'); chk.type = 'checkbox'; chk.id = def.id; chk.checked = def.defVal > 0;
+    var lbl  = document.createElement('label'); lbl.setAttribute('for', def.id); lbl.textContent = def.label;
+    var pct  = document.createElement('span'); pct.className = 'bm-pct'; pct.id = def.id + 'Pct'; pct.textContent = Math.round(def.defVal * 100) + '%';
+    row.appendChild(chk); row.appendChild(lbl); row.appendChild(pct);
+    var slider = document.createElement('input'); slider.type = 'range'; slider.className = 'bm-slider';
+    slider.id = def.id + 'Slider'; slider.min = 0; slider.max = 1; slider.step = 0.05; slider.value = def.defVal;
+    if (def.defVal === 0) { slider.disabled = true; slider.style.opacity = '0.4'; }
+    item.appendChild(row); item.appendChild(slider);
+    base.appendChild(item);
+
+    function applyBm(val) {
+      def.layer.setOpacity(val);
+      pct.textContent = Math.round(val * 100) + '%';
+      chk.checked = val > 0;
+      slider.value = val;
+      slider.disabled = val === 0;
+      slider.style.opacity = val === 0 ? '0.4' : '1';
+    }
+    chk.addEventListener('change', function() { applyBm(this.checked ? (parseFloat(slider.value) || 1.0) : 0); });
+    slider.addEventListener('input', function() { applyBm(parseFloat(this.value)); });
+  });
+
+  var bmSep = document.createElement('div'); bmSep.className = 'leaflet-control-layers-separator';
+  base.appendChild(bmSep);
+
+  // ── オーバーレイ セクションラベル ──
+  var overlayLbl = document.createElement('div'); overlayLbl.className = 'lc-section-label'; overlayLbl.textContent = 'レイヤ';
+  overlaysDiv.insertBefore(overlayLbl, overlaysDiv.firstChild);
 
   if (window.innerWidth < 768) closePanel();
 }
