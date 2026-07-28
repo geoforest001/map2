@@ -533,6 +533,26 @@ function renderLayerControl() {
   closeBtn.addEventListener('click', closePanel);
   openBtn.addEventListener('click', openPanel);
 
+  // 背景地図セクション
+  const bmSection = document.createElement('div');
+  bmSection.style.cssText = 'padding:4px 2px 2px';
+  bmSection.innerHTML = `
+    <span class="lc-section-label">背景地図</span>
+    <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
+      <input type="checkbox" id="chkAirPhoto"> <span>空中写真</span>
+    </label>
+    <label class="lgnd-row" style="cursor:pointer;padding:2px 0">
+      <input type="checkbox" id="chkCsMap"> <span>CS立体図</span>
+    </label>`;
+  panel.appendChild(bmSection);
+
+  document.getElementById('chkAirPhoto').addEventListener('change', function() {
+    gsiAirPhoto.setOpacity(this.checked ? 1 : 0);
+  });
+  document.getElementById('chkCsMap').addEventListener('change', function() {
+    naganoCsMap.setOpacity(this.checked ? 1 : 0);
+  });
+
   if (window.innerWidth < 768) closePanel();
 }
 
