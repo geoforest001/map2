@@ -359,6 +359,7 @@ const surveyTiles = protomapsL.leafletLayer({
 surveyTiles.addTo(map);
 
 const SHISETSU_URL = "https://geoforest001.github.io/map2/data/shisetsu.pmtiles";
+const NAEGI_URL    = "https://geoforest001.github.io/map2/data/naegi.pmtiles";
 
 class DoubleCircleSymbolizer {
   constructor({ fill, stroke, outerRadius, innerRadius, strokeWidth }) {
@@ -414,6 +415,20 @@ const shisetsuTiles = protomapsL.leafletLayer({
 });
 shisetsuTiles.addTo(map);
 
+const naegiTiles = protomapsL.leafletLayer({
+  url: NAEGI_URL,
+  maxDataZoom: 16,
+  pane: 'pointPane',
+  paintRules: [
+    {
+      dataLayer: "naegi",
+      symbolizer: new protomapsL.CircleSymbolizer({ radius: 5, fill: '#4caf50', opacity: 1, stroke: '#1b5e20', width: 1.5 })
+    }
+  ],
+  labelRules: []
+});
+naegiTiles.addTo(map);
+
 /* 各レイヤのクリック検出用データ取得 */
 let manholePinData = null;
 fetch('data/manhole_pins.json').then(r => r.json()).then(d => { manholePinData = d; });
@@ -434,7 +449,8 @@ const overlays = {
   "農業施設": shisetsuTiles,
   "開水路": waterwayTiles,
   "パイプライン": pipelineTiles,
-  "マンホール": surveyTiles
+  "マンホール": surveyTiles,
+  "苗木位置": naegiTiles
 };
 
 let layerControl;
@@ -453,7 +469,8 @@ function renderLayerControl() {
     '農業施設':       '<span class="lgnd-swatch lgnd-dblcircle" style="color:#e00"></span><span class="lgnd-text">農業施設（ポンプ場・水門等）</span>',
     '開水路':         '<span class="lgnd-swatch lgnd-line" style="background:rgb(0,150,255)"></span><span class="lgnd-text">開水路</span>',
     'パイプライン':   '<span class="lgnd-swatch lgnd-line" style="background:rgb(0,80,200)"></span><span class="lgnd-text">パイプライン</span>',
-    'マンホール':     '<span class="lgnd-swatch lgnd-sq" style="background:#2196F3"></span><span class="lgnd-text">排泥処理工</span><span class="lgnd-swatch lgnd-sq" style="background:#f44336"></span><span class="lgnd-text">制水弁</span><span class="lgnd-swatch lgnd-circle-sm" style="background:white"></span><span class="lgnd-text">その他</span>'
+    'マンホール':     '<span class="lgnd-swatch lgnd-sq" style="background:#2196F3"></span><span class="lgnd-text">排泥処理工</span><span class="lgnd-swatch lgnd-sq" style="background:#f44336"></span><span class="lgnd-text">制水弁</span><span class="lgnd-swatch lgnd-circle-sm" style="background:white"></span><span class="lgnd-text">その他</span>',
+    '苗木位置':       '<span class="lgnd-swatch lgnd-circle-sm" style="background:#4caf50;border-color:#1b5e20"></span><span class="lgnd-text">苗木植栽位置（GNSS測量）</span>'
   };
   document.querySelectorAll('.leaflet-control-layers-overlays label').forEach(function(label) {
     var span = label.querySelector('span');
