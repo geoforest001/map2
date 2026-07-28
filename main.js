@@ -134,14 +134,9 @@ map.on('click', function(e) {
       _selOverlay = L.circleMarker([nearest.y, nearest.x], {
         radius: 10, color: '#1b5e20', weight: 3, fillOpacity: 0
       }).addTo(map);
-      const rows = [
-        `<tr><th>苗木番号</th><td>${nearest.n}</td></tr>`,
-        nearest.e ? `<tr><th>標高</th><td>${nearest.e} m</td></tr>` : '',
-        nearest.g ? `<tr><th>計測グループ</th><td>${nearest.g}</td></tr>` : ''
-      ].filter(Boolean).join('');
-      L.popup({ maxWidth: 200 })
+      L.popup({ maxWidth: 160 })
         .setLatLng([nearest.y, nearest.x])
-        .setContent(`<table class="shisetsu-popup">${rows}</table>`)
+        .setContent(`🌱 ${nearest.n}`)
         .openOn(map);
       return;
     }
