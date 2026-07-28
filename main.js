@@ -136,7 +136,7 @@ map.on('click', function(e) {
       }).addTo(map);
       L.popup({ maxWidth: 160 })
         .setLatLng([nearest.y, nearest.x])
-        .setContent(`🌱 ${nearest.n}`)
+        .setContent(nearest.n)
         .openOn(map);
       return;
     }
