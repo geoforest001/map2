@@ -550,7 +550,8 @@ function renderLayerControl() {
       <div class="bm-row"><label><input type="checkbox" id="chkCsMap"> CS立体図</label><span class="bm-pct" id="pctCs">0%</span></div>
       <input type="range" class="bm-slider" id="sldCsMap" min="0" max="100" value="0" disabled style="opacity:0.4">
     </div>`;
-  panel.appendChild(bmSection);
+  var overlaysDiv = panel.querySelector('.leaflet-control-layers-overlays');
+  panel.insertBefore(bmSection, overlaysDiv);
 
   function setupBmLayer(chkId, sldId, pctId, layer, defaultVal) {
     const chk = document.getElementById(chkId);
