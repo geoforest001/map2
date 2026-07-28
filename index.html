@@ -11,7 +11,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./style.css?v=7" />
+    <link rel="stylesheet" href="./style.css?v=8" />
   </head>
   <body>
     <main class="page">
@@ -95,6 +95,73 @@
       </div>
     </div>
 
+    <!-- 天気パネル -->
+    <div id="wxPanel">
+      <div id="wxHandle">
+        <div id="wxHandleGrip">
+          <div></div><div></div><div></div>
+        </div>
+        <span id="wxTitle">📍 現在地の天気</span>
+        <span id="wxUpdated"></span>
+        <button id="wxRefresh" title="更新">🔄</button>
+        <button id="wxCollapseBtn" title="折りたたむ">▾</button>
+        <button id="wxClose" title="閉じる">✕</button>
+      </div>
+      <div id="wxBody">
+        <div id="wxLoading">取得中...</div>
+        <div id="wxContent">
+          <div class="wx-section-label">🌤 これからの気象情報</div>
+          <div id="wxMain">
+            <div id="wxIcon">☀️</div>
+            <div id="wxDesc">--</div>
+            <div id="wxTemp">↑--° / ↓--°</div>
+          </div>
+          <div id="wxGrid">
+            <div class="wx-cell" id="wxCellRain"><span class="lbl">☔ 降水確率</span><span class="val" id="wxRain">--</span></div>
+            <div class="wx-cell" id="wxCellWind"><span class="lbl">🌡 最高気温</span><span class="val" id="wxWind">--</span></div>
+            <div class="wx-cell" id="wxCellHumid"><span class="lbl">🌡 最低気温</span><span class="val" id="wxHumid">--</span></div>
+          </div>
+          <div id="wxDayCards"></div>
+          <canvas id="wxChart" height="70"></canvas>
+          <div class="wx-section-divider"></div>
+          <div class="wx-section-label">📊 ここまでの気象情報</div>
+          <div id="wxAmedasLoading">AMeDAS取得中...</div>
+          <div id="wxAmedasSection">
+            <div id="amStationRow">
+              <span id="amStationName">--</span>
+              <span id="amDistBadge"></span>
+            </div>
+            <div id="amedasDataGrid">
+              <div class="am-cell" id="amCellTemp"><span class="lbl">🌡 気温</span><span class="val" id="amTemp">--</span></div>
+              <div class="am-cell" id="amCellHumid"><span class="lbl">💧 湿度</span><span class="val" id="amHumid">--</span></div>
+              <div class="am-cell" id="amCellRain1h"><span class="lbl">☔ 1h雨量</span><span class="val" id="amRain1h">--</span></div>
+              <div class="am-cell" id="amCellRain10m"><span class="lbl">☔ 10m雨量</span><span class="val" id="amRain10m">--</span></div>
+              <div class="am-cell" id="amCellRain24h"><span class="lbl">☔ 24h雨量</span><span class="val" id="amRain24h">--</span></div>
+              <div class="am-cell" id="amCellWind"><span class="lbl">💨 風速</span><span class="val" id="amWind">--</span></div>
+              <div class="am-cell" id="amCellWindDir"><span class="lbl">🧭 風向</span><span class="val" id="amWindDir">--</span></div>
+              <div class="am-cell" id="amCellSnow"><span class="lbl">❄️ 積雪</span><span class="val" id="amSnow">--</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- チャートチップス（モバイル用） -->
+    <div id="chartChips"></div>
+
+    <!-- チャートシート（モバイル用） -->
+    <div id="chartSheet">
+      <div id="chartSheetHandle">
+        <span id="chartSheetTitle"></span>
+        <button id="chartSheetClose">✕</button>
+      </div>
+      <div id="chartSheetBody">
+        <div id="chartSheetLoading">取得中...</div>
+        <canvas id="chartSheetCanvas" style="display:none;"></canvas>
+        <div id="chartSheetSrc"></div>
+      </div>
+    </div>
+
     <!-- トースト通知 -->
     <div id="toast"></div>
 
@@ -113,6 +180,8 @@
     </div>
 
     <script src="https://unpkg.com/exifr/dist/mini.legacy.umd.js"></script>
-    <script src="./main.js?v=26"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="./main.js?v=27"></script>
+    <script src="./weather.js?v=1"></script>
   </body>
 </html>
