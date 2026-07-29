@@ -1024,26 +1024,27 @@ document.getElementById('bbsGetLocBtn').addEventListener('click', () => {
   );
 });
 
-async function _bbsHandlePhoto(file) {
+async function _bbsHandlePhoto(file, fromCamera = false) {
   if (!file) return;
-  let exifGps = false;
-  if (window.exifr) {
-    try {
-      const gps = await exifr.gps(file);
-      if (gps && gps.latitude && gps.longitude) {
-        _bbsLat = gps.latitude;
-        _bbsLng = gps.longitude;
-        document.getElementById('bbsLocStatus').textContent =
-          `📷 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
-        exifGps = true;
-      }
-    } catch(_) {}
-  }
-  if (!exifGps && _lastKnownPos) {
-    _bbsLat = _lastKnownPos.coords.latitude;
-    _bbsLng = _lastKnownPos.coords.longitude;
-    document.getElementById('bbsLocStatus').textContent =
-      `📍 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
+  if (fromCamera) {
+    if (_lastKnownPos) {
+      _bbsLat = _lastKnownPos.coords.latitude;
+      _bbsLng = _lastKnownPos.coords.longitude;
+      document.getElementById('bbsLocStatus').textContent =
+        `📍 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
+    }
+  } else {
+    if (window.exifr) {
+      try {
+        const gps = await exifr.gps(file);
+        if (gps && gps.latitude && gps.longitude) {
+          _bbsLat = gps.latitude;
+          _bbsLng = gps.longitude;
+          document.getElementById('bbsLocStatus').textContent =
+            `📷 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
+        }
+      } catch(_) {}
+    }
   }
   document.getElementById('bbsTakePhotoBtn').textContent = '圧縮中...';
   document.getElementById('bbsPickPhotoBtn').textContent = '圧縮中...';
@@ -1065,7 +1066,7 @@ function _bbsOpenFileInput(useCamera) {
   document.body.appendChild(inp);
   inp.onchange = e => {
     const f = e.target.files[0];
-    if (f) _bbsHandlePhoto(f);
+    if (f) _bbsHandlePhoto(f, useCamera);
     document.body.removeChild(inp);
   };
   inp.click();
