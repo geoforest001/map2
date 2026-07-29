@@ -1026,6 +1026,7 @@ document.getElementById('bbsGetLocBtn').addEventListener('click', () => {
 
 async function _bbsHandlePhoto(file) {
   if (!file) return;
+  let exifGps = false;
   if (window.exifr) {
     try {
       const gps = await exifr.gps(file);
@@ -1034,8 +1035,15 @@ async function _bbsHandlePhoto(file) {
         _bbsLng = gps.longitude;
         document.getElementById('bbsLocStatus').textContent =
           `📷 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
+        exifGps = true;
       }
     } catch(_) {}
+  }
+  if (!exifGps && _lastKnownPos) {
+    _bbsLat = _lastKnownPos.coords.latitude;
+    _bbsLng = _lastKnownPos.coords.longitude;
+    document.getElementById('bbsLocStatus').textContent =
+      `📍 ${_bbsLat.toFixed(5)}, ${_bbsLng.toFixed(5)}`;
   }
   document.getElementById('bbsTakePhotoBtn').textContent = '圧縮中...';
   document.getElementById('bbsPickPhotoBtn').textContent = '圧縮中...';
