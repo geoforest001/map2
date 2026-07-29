@@ -140,10 +140,11 @@ body {
 .lc-open-btn:hover { background: #f4f4f4; }
 @media (max-width: 767px) {
   .leaflet-control-layers {
-    max-height: 55vh;
+    max-height: calc(100vh - 120px);
     max-width: min(240px, calc(100vw - 56px));
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     font-size: 11px !important;
   }
   .leaflet-control-layers-expanded {
