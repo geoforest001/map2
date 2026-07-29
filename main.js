@@ -551,12 +551,13 @@ function renderLayerControl() {
   curBtn.addEventListener('click', function() {
     var btn = this; btn.classList.add('loading');
     if (_lastKnownPos && (Date.now() - _lastKnownPos.timestamp) < 30000) {
-      map.setView([_lastKnownPos.coords.latitude, _lastKnownPos.coords.longitude], currentLocationZoom);
+      var z1 = Math.max(map.getZoom(), currentLocationZoom);
+      map.setView([_lastKnownPos.coords.latitude, _lastKnownPos.coords.longitude], z1);
       btn.classList.remove('loading');
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      function(pos) { _lastKnownPos = pos; map.setView([pos.coords.latitude, pos.coords.longitude], currentLocationZoom); btn.classList.remove('loading'); },
+      function(pos) { _lastKnownPos = pos; var z2 = Math.max(map.getZoom(), currentLocationZoom); map.setView([pos.coords.latitude, pos.coords.longitude], z2); btn.classList.remove('loading'); },
       function() { toast('現在地を取得できませんでした', 3000); btn.classList.remove('loading'); },
       { enableHighAccuracy: _isMobile, timeout: 15000 }
     );
