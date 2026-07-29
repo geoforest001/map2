@@ -186,6 +186,11 @@ body {
   white-space: nowrap;
 }
 
+/* iOSツールバー対応：底部コントロールを安全領域内に収める */
+.leaflet-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* ─── GPSログコントロール ─────────────────────── */
 .track-ctrl {
   display: flex;
