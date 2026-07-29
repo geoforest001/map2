@@ -1,6 +1,7 @@
 const fallbackLocation = [35.8294, 137.9536]; // 伊那市
 const fallbackZoom = 13;
 const currentLocationZoom = 15;
+const _isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const gsiAttribution =
   '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>';
 
@@ -549,10 +550,15 @@ function renderLayerControl() {
 
   curBtn.addEventListener('click', function() {
     var btn = this; btn.classList.add('loading');
+    if (_lastKnownPos && (Date.now() - _lastKnownPos.timestamp) < 30000) {
+      map.setView([_lastKnownPos.coords.latitude, _lastKnownPos.coords.longitude], currentLocationZoom);
+      btn.classList.remove('loading');
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
-      function(pos) { map.setView([pos.coords.latitude, pos.coords.longitude], currentLocationZoom); btn.classList.remove('loading'); },
+      function(pos) { _lastKnownPos = pos; map.setView([pos.coords.latitude, pos.coords.longitude], currentLocationZoom); btn.classList.remove('loading'); },
       function() { toast('現在地を取得できませんでした', 3000); btn.classList.remove('loading'); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: _isMobile, timeout: 15000 }
     );
   });
 
@@ -1210,11 +1216,13 @@ setTimeout(_buildTrackCtrl, 0);
 /* ─── 現在地 常時追跡（自動開始） ───────────────── */
 let currentLocationMarker = null;
 let currentLocationCircle = null;
+let _lastKnownPos = null;
 
 if (navigator.geolocation) {
   let firstFix = true;
   navigator.geolocation.watchPosition(
     pos => {
+      _lastKnownPos = pos;
       const latlng = [pos.coords.latitude, pos.coords.longitude];
       if (firstFix) {
         map.setView(latlng, currentLocationZoom);
@@ -1240,6 +1248,6 @@ if (navigator.geolocation) {
       }
     },
     () => { toast('現在地を取得できませんでした', 3000); },
-    { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 }
+    { enableHighAccuracy: _isMobile, timeout: 30000, maximumAge: 5000 }
   );
 }
