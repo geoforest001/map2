@@ -470,11 +470,11 @@ const inaParkTreesTiles = protomapsL.leafletLayer({
       dataLayer: "伊那公園樹頂点",
       minzoom: 15,
       symbolizer: new protomapsL.CenteredTextSymbolizer({
-        label: (zoom, feature) => feature.props['height_m'] != null ? feature.props['height_m'].toFixed(1) + 'm' : '',
+        labelProps: ['height_label'],
         fill: '#1b5e20',
         stroke: 'white',
         width: 2,
-        font: () => '10px sans-serif'
+        fontSize: 10
       })
     }
   ]
