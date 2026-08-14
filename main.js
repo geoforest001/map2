@@ -384,7 +384,8 @@ const surveyTiles = protomapsL.leafletLayer({
 surveyTiles.addTo(map);
 
 const SHISETSU_URL = "https://geoforest001.github.io/map2/data/shisetsu.pmtiles";
-const NAEGI_URL    = "https://geoforest001.github.io/map2/data/naegi.pmtiles";
+const NAEGI_URL         = "https://geoforest001.github.io/map2/data/naegi.pmtiles";
+const INA_PARK_TREES_URL = "https://geoforest001.github.io/map2/data/ina_park_trees.pmtiles";
 
 class DoubleCircleSymbolizer {
   constructor({ fill, stroke, outerRadius, innerRadius, strokeWidth }) {
@@ -454,6 +455,20 @@ const naegiTiles = protomapsL.leafletLayer({
 });
 naegiTiles.addTo(map);
 
+const inaParkTreesTiles = protomapsL.leafletLayer({
+  url: INA_PARK_TREES_URL,
+  maxDataZoom: 18,
+  pane: 'pointPane',
+  paintRules: [
+    {
+      dataLayer: "伊那公園樹頂点",
+      symbolizer: new protomapsL.CircleSymbolizer({ radius: 4, fill: '#2e7d32', opacity: 1, stroke: '#fff', width: 1 })
+    }
+  ],
+  labelRules: []
+});
+inaParkTreesTiles.addTo(map);
+
 /* 各レイヤのクリック検出用データ取得 */
 let manholePinData = null;
 fetch('data/manhole_pins.json').then(r => r.json()).then(d => { manholePinData = d; });
@@ -478,7 +493,8 @@ const overlays = {
   "開水路": waterwayTiles,
   "パイプライン": pipelineTiles,
   "マンホール": surveyTiles,
-  "苗木位置": naegiTiles
+  "苗木位置": naegiTiles,
+  "伊那公園樹頂点": inaParkTreesTiles
 };
 
 let layerControl;
