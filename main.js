@@ -546,6 +546,25 @@ function renderLayerControl() {
   curBtn.className = 'tb-btn'; curBtn.id = 'btnCurrentLoc';
   curBtn.innerHTML = '<span class="ico">📍</span><span>現在地</span>';
   tbDiv.appendChild(curBtn);
+
+  var geojsonLbl = document.createElement('label');
+  geojsonLbl.className = 'tb-btn';
+  geojsonLbl.innerHTML = '<span class="ico">📋</span><span>GeoJSON</span>';
+  var geojsonInp = document.createElement('input');
+  geojsonInp.type = 'file'; geojsonInp.accept = '.geojson,.json'; geojsonInp.style.display = 'none';
+  geojsonInp.onchange = function(e) { _loadGeoJSON(e.target.files[0]); e.target.value = ''; };
+  geojsonLbl.appendChild(geojsonInp);
+  tbDiv.appendChild(geojsonLbl);
+
+  var gpkgLbl = document.createElement('label');
+  gpkgLbl.className = 'tb-btn';
+  gpkgLbl.innerHTML = '<span class="ico">📦</span><span>GPKG</span>';
+  var gpkgInp = document.createElement('input');
+  gpkgInp.type = 'file'; gpkgInp.accept = '.gpkg'; gpkgInp.style.display = 'none';
+  gpkgInp.onchange = function(e) { _loadGPKG(e.target.files[0]); e.target.value = ''; };
+  gpkgLbl.appendChild(gpkgInp);
+  tbDiv.appendChild(gpkgLbl);
+
   lcList.insertBefore(tbDiv, lcList.firstChild);
 
   curBtn.addEventListener('click', function() {
@@ -1115,6 +1134,212 @@ document.getElementById('bbsSubmitBtn').addEventListener('click', async () => {
   }
   btn.disabled = false;
 });
+
+/* ─── GeoJSON / GeoPackage 読込 ─── */
+let _vectorDropLayer = null;
+
+function _loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+function _renderVectorLayer(geojson, filename) {
+  if (_vectorDropLayer) { map.removeLayer(_vectorDropLayer); }
+  _vectorDropLayer = L.geoJSON(geojson, {
+    style: { color: '#9c27b0', weight: 2, fillOpacity: 0.15, opacity: 0.9 },
+    pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 5, color: '#9c27b0', fillOpacity: 0.8 }),
+    onEachFeature: (f, layer) => {
+      if (!f.properties) return;
+      const rows = Object.entries(f.properties)
+        .filter(([, v]) => v !== null && v !== undefined)
+        .map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+      if (rows) layer.bindPopup(`<table class="shisetsu-popup">${rows}</table>`);
+    }
+  }).addTo(map);
+  const bounds = _vectorDropLayer.getBounds();
+  if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+  _showVectorCard(filename);
+}
+
+function _showVectorCard(name) {
+  let card = document.getElementById('vectorDropCard');
+  if (!card) {
+    card = document.createElement('div');
+    card.id = 'vectorDropCard';
+    document.body.appendChild(card);
+  }
+  const short = name.length > 24 ? name.slice(0, 21) + '...' : name;
+  card.innerHTML = `<span>📋 ${short}</span><button id="vectorDropClose">✕ 解除</button>`;
+  document.getElementById('vectorDropClose').onclick = () => {
+    if (_vectorDropLayer) { map.removeLayer(_vectorDropLayer); _vectorDropLayer = null; }
+    card.remove();
+  };
+}
+
+async function _loadGeoJSON(file) {
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const count = data.features ? data.features.length : '?';
+    _renderVectorLayer(data, file.name);
+    toast(`GeoJSON読み込み完了（${count}件）`, 2000);
+  } catch (e) {
+    toast('GeoJSONの読み込みに失敗しました', 2500);
+  }
+}
+
+const _JP_PLANE = {
+  6669:[129.5,33],  6670:[131,33],          6671:[132+10/60,36],
+  6672:[133.5,33],  6673:[134+20/60,36],    6674:[136,36],
+  6675:[137+10/60,36], 6676:[138.5,36],     6677:[139+50/60,36],
+  6678:[140+50/60,40], 6679:[140.25,44],    6680:[142.25,44],
+  6681:[144.25,44], 6682:[142,26],
+  2443:[129.5,33],  2444:[131,33],          2445:[132+10/60,36],
+  2446:[133.5,33],  2447:[134+20/60,36],    2448:[136,36],
+  2449:[137+10/60,36], 2450:[138.5,36],     2451:[139+50/60,36],
+  2452:[140+50/60,40], 2453:[140.25,44],    2454:[142.25,44],
+  2455:[144.25,44], 2456:[142,26],
+};
+
+function _applyCoordTransform(geom, fn) {
+  const t = coords => typeof coords[0] === 'number' ? fn(coords) : coords.map(t);
+  return { ...geom, coordinates: t(geom.coordinates) };
+}
+
+async function _loadGPKG(file) {
+  if (!file) return;
+  toast('GeoPackage読み込み中...', 10000);
+  try {
+    if (!window.initSqlJs) {
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js');
+    }
+    if (!window._sqlJs) {
+      window._sqlJs = await window.initSqlJs({
+        locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
+      });
+    }
+    const db = new window._sqlJs.Database(new Uint8Array(await file.arrayBuffer()));
+    let gcRes;
+    try { gcRes = db.exec('SELECT table_name, column_name, srs_id FROM gpkg_geometry_columns'); }
+    catch(e) { toast('GeoPackage形式が不正です', 2500); db.close(); return; }
+    if (!gcRes.length || !gcRes[0].values.length) {
+      toast('フィーチャレイヤが見つかりません', 2500); db.close(); return;
+    }
+    const features = [];
+    for (const [tbl, geomCol, srsId] of gcRes[0].values) {
+      const res = db.exec(`SELECT * FROM "${tbl}"`);
+      if (!res.length) continue;
+      const cols = res[0].columns;
+      const gi = cols.indexOf(geomCol);
+      for (const row of res[0].values) {
+        if (!row[gi]) continue;
+        try {
+          const bytes = row[gi] instanceof Uint8Array ? row[gi] : new Uint8Array(row[gi]);
+          const geom = _gpkgGeomToGeoJSON(bytes);
+          if (!geom) continue;
+          const props = { _srs_id: srsId };
+          cols.forEach((c, i) => { if (i !== gi) props[c] = row[i]; });
+          features.push({ type: 'Feature', geometry: geom, properties: props });
+        } catch(e) { /* skip */ }
+      }
+    }
+    db.close();
+    if (!features.length) { toast('ジオメトリが見つかりません', 2500); return; }
+
+    const srsId = gcRes[0].values[0][2];
+    const firstGeom = features[0].geometry;
+    let testCoord = firstGeom.coordinates;
+    while (Array.isArray(testCoord[0])) testCoord = testCoord[0];
+    const isProjected = Math.abs(testCoord[0]) > 180 || Math.abs(testCoord[1]) > 90;
+
+    if (isProjected) {
+      const zone = _JP_PLANE[srsId];
+      if (!zone) {
+        toast(`⚠ 座標系(EPSG:${srsId})に対応していません。WGS84/JGD2011に変換してください。`, 6000);
+        return;
+      }
+      if (!window.proj4) {
+        await _loadScript('https://unpkg.com/proj4@2.9.0/dist/proj4.js');
+      }
+      const pstr = `+proj=tmerc +lat_0=${zone[1]} +lon_0=${zone[0]} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`;
+      const tryOrder = (xy) => proj4(pstr, '+proj=longlat +datum=WGS84').forward(xy);
+      const t1 = tryOrder([testCoord[0], testCoord[1]]);
+      const inJapan = lon => lon > 120 && lon < 155;
+      const transformFn = inJapan(t1[0])
+        ? coords => tryOrder([coords[0], coords[1]])
+        : coords => tryOrder([coords[1], coords[0]]);
+      for (let f of features) {
+        f.geometry = _applyCoordTransform(f.geometry, transformFn);
+      }
+      toast(`GeoPackage読み込み完了（${features.length}件, EPSG:${srsId}→WGS84）`, 2500);
+    } else {
+      toast(`GeoPackage読み込み完了（${features.length}件）`, 2000);
+    }
+    _renderVectorLayer({ type: 'FeatureCollection', features }, file.name);
+  } catch (e) {
+    toast('GeoPackageの読み込みに失敗しました', 2500);
+    console.error(e);
+  }
+}
+
+function _gpkgGeomToGeoJSON(bytes) {
+  if (bytes[0] !== 0x47 || bytes[1] !== 0x50) return null;
+  const flags = bytes[3];
+  if ((flags >> 4) & 1) return null;
+  const envSizes = [0, 32, 48, 48, 64];
+  const wkbOff = 8 + (envSizes[(flags >> 1) & 7] || 0);
+  const dv = new DataView(bytes.buffer, bytes.byteOffset + wkbOff);
+  return _wkbParse(dv, { o: 0 }).geom;
+}
+
+function _wkbParse(dv, s) {
+  const le = dv.getUint8(s.o) === 1; s.o++;
+  const tc = le ? dv.getUint32(s.o, true) : dv.getUint32(s.o, false); s.o += 4;
+  if (tc & 0x20000000) s.o += 4;
+  const raw = tc & 0xFFFF;
+  let bt = raw > 3000 ? raw - 3000 : raw > 2000 ? raw - 2000 : raw > 1000 ? raw - 1000 : raw;
+  const nd = raw > 3000 ? 4 : (raw > 1000 || (tc & 0x80000000) || (tc & 0x40000000)) ? 3 : 2;
+  const st = nd * 8;
+  const rf = o => le ? dv.getFloat64(o, true) : dv.getFloat64(o, false);
+  const ri = o => le ? dv.getUint32(o, true) : dv.getUint32(o, false);
+  const rPt  = () => { const p = [rf(s.o), rf(s.o + 8)]; s.o += st; return p; };
+  const rPts = () => { const n = ri(s.o); s.o += 4; const a = []; for(let i=0;i<n;i++) a.push(rPt()); return a; };
+  switch (bt) {
+    case 1: return { geom: { type: 'Point', coordinates: rPt() } };
+    case 2: return { geom: { type: 'LineString', coordinates: rPts() } };
+    case 3: { const n = ri(s.o); s.o += 4; const rings = []; for(let i=0;i<n;i++) rings.push(rPts()); return { geom: { type: 'Polygon', coordinates: rings } }; }
+    case 4: { const n = ri(s.o); s.o += 4; const pts = []; for(let i=0;i<n;i++) pts.push(_wkbParse(dv,s).geom.coordinates); return { geom: { type: 'MultiPoint', coordinates: pts } }; }
+    case 5: { const n = ri(s.o); s.o += 4; const ls = []; for(let i=0;i<n;i++) ls.push(_wkbParse(dv,s).geom.coordinates); return { geom: { type: 'MultiLineString', coordinates: ls } }; }
+    case 6: { const n = ri(s.o); s.o += 4; const ps = []; for(let i=0;i<n;i++) ps.push(_wkbParse(dv,s).geom.coordinates); return { geom: { type: 'MultiPolygon', coordinates: ps } }; }
+    default: return { geom: null };
+  }
+}
+
+/* ─── ファイルドロップ（PC）─── */
+(function() {
+  const mapEl = map.getContainer();
+  mapEl.addEventListener('dragover', e => { e.preventDefault(); mapEl.classList.add('drag-over'); });
+  mapEl.addEventListener('dragleave', e => {
+    if (!mapEl.contains(e.relatedTarget)) mapEl.classList.remove('drag-over');
+  });
+  mapEl.addEventListener('drop', e => {
+    e.preventDefault();
+    mapEl.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.geojson') || name.endsWith('.json')) {
+      _loadGeoJSON(file);
+    } else if (name.endsWith('.gpkg')) {
+      _loadGPKG(file);
+    } else {
+      toast('対応形式: GeoJSON / GeoPackage', 3000);
+    }
+  });
+})();
 
 /* ─── GPSログ・GPXインポート ───────────────────── */
 let _trackPoints = [];
