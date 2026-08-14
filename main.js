@@ -477,11 +477,12 @@ naegiTiles.addTo(map);
 
 const inaParkTreesTiles = protomapsL.leafletLayer({
   url: INA_PARK_TREES_URL,
-  maxDataZoom: 18,
+  maxDataZoom: 14,
   pane: 'pointPane',
   paintRules: [
     {
       dataLayer: "伊那公園樹頂点",
+      minzoom: 14,
       symbolizer: new protomapsL.CircleSymbolizer({ radius: 5, fill: '#2e7d32', opacity: 1, stroke: '#fff', width: 1 })
     }
   ],
