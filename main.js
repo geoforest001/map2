@@ -127,6 +127,26 @@ map.on('click', function(e) {
   const lat = e.latlng.lat, lng = e.latlng.lng;
   const cosLat = Math.cos(lat * Math.PI / 180);
 
+  // 優先0: 伊那公園樹頂点（~15m以内）
+  if (inaParkTreesData && map.hasLayer(inaParkTreesTiles)) {
+    let nearest = null, minDist = Infinity;
+    for (const d of inaParkTreesData) {
+      const dist = (d[1]-lat)**2 + ((d[0]-lng)*cosLat)**2;
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    }
+    if (nearest && minDist <= 0.000135 * 0.000135) {
+      if (_selOverlay) { map.removeLayer(_selOverlay); _selOverlay = null; }
+      _selOverlay = L.circleMarker([nearest[1], nearest[0]], {
+        radius: 10, color: '#1b5e20', weight: 3, fillOpacity: 0
+      }).addTo(map);
+      L.popup({ maxWidth: 180 })
+        .setLatLng([nearest[1], nearest[0]])
+        .setContent(`<table class="shisetsu-popup"><tr><th>樹木頂点</th><td></td></tr><tr><th>高さ</th><td>${nearest[2].toFixed(1)} m</td></tr></table>`)
+        .openOn(map);
+      return;
+    }
+  }
+
   // 優先1: 苗木位置（点フィーチャ、~30m以内）
   if (naegiPinData && map.hasLayer(naegiTiles)) {
     let nearest = null, minDist = Infinity;
@@ -462,26 +482,17 @@ const inaParkTreesTiles = protomapsL.leafletLayer({
   paintRules: [
     {
       dataLayer: "伊那公園樹頂点",
-      symbolizer: new protomapsL.CircleSymbolizer({ radius: 4, fill: '#2e7d32', opacity: 1, stroke: '#fff', width: 1 })
+      symbolizer: new protomapsL.CircleSymbolizer({ radius: 5, fill: '#2e7d32', opacity: 1, stroke: '#fff', width: 1 })
     }
   ],
-  labelRules: [
-    {
-      dataLayer: "伊那公園樹頂点",
-      minzoom: 15,
-      symbolizer: new protomapsL.CenteredTextSymbolizer({
-        labelProps: ['height_label'],
-        fill: '#1b5e20',
-        stroke: 'white',
-        width: 2,
-        fontSize: 10
-      })
-    }
-  ]
+  labelRules: []
 });
 inaParkTreesTiles.addTo(map);
 
 /* 各レイヤのクリック検出用データ取得 */
+let inaParkTreesData = null;
+fetch('data/ina_park_trees_data.json').then(r => r.json()).then(d => { inaParkTreesData = d; });
+
 let manholePinData = null;
 fetch('data/manhole_pins.json').then(r => r.json()).then(d => { manholePinData = d; });
 
