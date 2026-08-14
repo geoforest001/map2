@@ -472,3 +472,27 @@ body {
 .wx-chk-item.active,
 .wx-chk-item:has(input:checked) { background: #eef4ff; border-color: #4488dd; color: #1a5fa0; font-weight: 600; }
 .wx-chk-item:hover { background: #f0f4ff; }
+
+/* ─── ファイルドロップ ─── */
+#map.drag-over::after {
+  content: '📋 GeoJSON  /  📦 GeoPackage  をドロップ';
+  position: absolute; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(41,121,255,0.12);
+  border: 3px dashed #2979ff;
+  font-size: 18px; font-weight: bold; color: #2979ff;
+  pointer-events: none; box-sizing: border-box;
+}
+
+#vectorDropCard {
+  display: flex; position: fixed; bottom: 90px; right: 10px;
+  z-index: 8000; background: rgba(100,30,120,0.92); color: #fff;
+  border-radius: 20px; padding: 6px 8px 6px 14px;
+  font-size: 12px; white-space: nowrap; align-items: center; gap: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+#vectorDropCard button {
+  background: rgba(255,255,255,0.22); border: none; color: #fff;
+  border-radius: 12px; padding: 3px 10px; font-size: 11px;
+  cursor: pointer;
+}
