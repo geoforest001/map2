@@ -465,7 +465,19 @@ const inaParkTreesTiles = protomapsL.leafletLayer({
       symbolizer: new protomapsL.CircleSymbolizer({ radius: 4, fill: '#2e7d32', opacity: 1, stroke: '#fff', width: 1 })
     }
   ],
-  labelRules: []
+  labelRules: [
+    {
+      dataLayer: "伊那公園樹頂点",
+      minzoom: 15,
+      symbolizer: new protomapsL.CenteredTextSymbolizer({
+        label: (zoom, feature) => feature.props['height_m'] != null ? feature.props['height_m'].toFixed(1) + 'm' : '',
+        fill: '#1b5e20',
+        stroke: 'white',
+        width: 2,
+        font: () => '10px sans-serif'
+      })
+    }
+  ]
 });
 inaParkTreesTiles.addTo(map);
 
